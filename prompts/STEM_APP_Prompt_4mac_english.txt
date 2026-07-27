@@ -1,0 +1,516 @@
+Master prompt to build the application
+from scratch with Codex
+Version 1.0 - July 2026
+How to use this document
+1. Create a new task in Codex inside an empty project folder.
+2. Copy the complete prompt included below.
+3. Attach any visual references or test audio files you want to use.
+4. Let Codex inspect the environment, investigate models, deploy, test and package the application.
+5. Always check the licenses of the models and dependencies before distributing the result.
+IMPORTANT: This document contains development instructions. Does not include trained models or
+grants rights to third-party software, datasets or weights. Each user is responsible for checking
+the licenses for the components it incorporates.
+Free document for assisted construction with Codex 2
+
+--- Page 3 ---
+[PROMPT MASTER
+FULL PROMPT - COPY FROM HERE
+
+Acts as a software architect, senior macOS developer, digital audio specialist, machine
+learning applied to musical separation, product design and application packaging.
+I want you to design, program, test and package a macOS desktop application from scratch
+called Ariel's Splitter.
+Work autonomously until you obtain a functional and verifiable application. Don't just describe code:
+inspects the environment, investigates, deploys, compiles, runs actual tests, and generates the final artifacts.
+If you encounter a technical or legal impediment, don't hide it or pretend that a feature exists. Continue with everything
+what can be completed and explains exactly what model, license, certificate or resource is missing.
+1. General objective
+Ariel's Splitter will be a native application to separate a musical mix into independent tracks using
+local artificial intelligence models.
+It should be designed for musicians, producers, students and users without technical knowledge. The flow must be
+direct: load a song, choose what to separate, choose a folder, process, listen to the tracks and export.
+Priorities, in this order:
+
+1. Real quality of separation.
+
+2. Exact synchronization of playback and export.
+
+3. Stability and absence of false silent files.
+
+4. Ease of use.
+
+5. Privacy and local processing.
+
+6. Installer portability.
+
+7. Correct licenses and attributions.
+
+8. Minimalist, beautiful and worked design.
+Do not build a website or an Electron application. Develop a native macOS application,
+preferably with Swift, SwiftUI, AppKit, AVFoundation and AVAudioEngine.
+2. Name, identity and design
+Product name: Ariel's Splitter.
+The design must be:
+
+* Minimalist.
+
+* Clean.
+
+* Elegant.
+
+* Professional.
+
+* Friendly.
+
+* With visual personality.
+
+Free document for assisted construction with Codex 3
+
+--- Page 4 ---
+[PROMPT MASTER
+* With a recognizable and somewhat fun color palette, without being childish.
+Avoid a generic, excessively gray or prototype-like interface.
+Don't use the slogan “A mix. “Only what you need.”
+Respect the top area of macOS windows. Close, minimize, and zoom controls should never be
+overlap with the logo, application name or other text.
+The interface must adapt correctly to the window size and remain readable on small screens.
+It uses a clear typographic hierarchy, generous spacing, soft edges, and comprehensible visual states.
+3. Main flow
+The user must be able to:
+1. Drag a song or select it using a native dialog.
+2. View its name, format, duration, sample rate and channels.
+3. Choose exactly which instruments you want to separate.
+4. Choose a working folder and export.
+5. Start the separation.
+6. View the actual progress of the process.
+7. Cancel safely.
+8. Listen to all generated tracks simultaneously.
+9. Apply mute, solo and independent volume.
+10. Change the playback point using a timeline.
+11. Export individual tracks.
+12. Export a new mix with the current volumes, mute and solo.
+13. Open the results folder.
+Never save results to an unknown location. The user must explicitly choose the folder before
+to separate.
+4. Track selector
+The interface must have “All” and “None” controls, as well as individual selectors for each
+category available.
+Desired categories:
+* Voices.
+* Main vocal.
+* Choirs and second voices.
+* Vocal effects, reverb or vocal environment.
+* Noise or artifacts.
+* Full battery.
+Free document for assisted construction with Codex 4
+
+--- Page 5 ---
+[PROMPT MASTER
+* Bass drum.
+* Box.
+* Toms.
+* Dishes.
+* Low.
+* Guitar.
+*Acoustic guitar, only if there is a really capable model.
+* Electric guitar, only if there is a really capable model.
+* Piano and keyboards.
+* Other instruments that can be separated using real and verifiable models.
+*Other.
+Don't show fake options or generate silent files to make it appear that a separation exists.
+If a technically valid and appropriately licensed model does not exist for a category:
+* Leave the option disabled.
+* Explain why it is not available.
+*Do not generate an empty track.
+* Record the limitation in the report.
+5. Other Logic
+Plugin logic is essential.
+* If the user selects only “Voices”, exports “Voices.wav” and “Other.wav”.
+* In that case, Other must contain everything that is not voice.
+* If you select “Battery” only, export “Full Battery.wav”, its details where applicable, and
+“Other.wav”.
+* In that case, Other must contain everything that is not a battery.
+* If you select multiple instruments, Other should contain everything that has not been selected.
+* If you select all available categories, generates Other only if there is residual information that does not
+reliably belongs to any track.
+* Other must not be an artificially created silent file.
+* The sum of the main and Other tracks should reconstruct the mix with as little error as possible.
+* Avoid duplicating material when exporting a master track and its subtracks simultaneously.
+For detailed voices:
+*Lead vocals and backing vocals must come from a real vocal separation.
+* Vocal effects must not be a copy of the voice.
+*Noise must be a real independent track.
+*If a separation depends on first obtaining the full voice, execute that stage internally even if the
+user has not checked “Voices”.
+Free document for assisted construction with Codex 5
+
+--- Page 6 ---
+[PROMPT MASTER
+* Don't force the user to understand internal dependencies between models.
+6. Research and separation engine
+Research current models before choosing them. Use primary sources: official repositories, model cards
+official titles, author publications and license texts included with the weights.
+Mandatory conditions:
+* Completely local processing.
+* No calls to payment APIs during separation.
+* Without uploading songs.
+* No silently downloading models while a track is processing.
+* Explicit management of model installation.
+* SHA-256 hash for each model file.
+* Record of origin, version, license, author and capabilities.
+* Differentiation between code license and trained weights license.
+* Prohibition of assuming that the weights are commercial because the code repository is MIT.
+Use in a distributable build only models whose weights have an unambiguous license to:
+* Use.
+* Inclusion in applications.
+* Redistribution.
+*Commercial use, where applicable.
+* Modification, if the process requires it.
+If the license for the weights is ambiguous, do not include them in a public or commercial compilation.
+Deploy a model manifest with:
+* Identifier.
+* Route.
+* SHA-256 hash.
+* Version.
+* Origin.
+* License.
+* Link to evidence of license.
+* Author and attribution.
+* Capacities.
+* Redistribution permission.
+* Commercial authorization.
+Implement a fail-closed verifier. The public build should fail if it finds:
+* An unregistered model.
+Free document for assisted construction with Codex [
+
+--- Page 7 ---
+[PROMPT MASTER
+* A model with altered hashing.
+* A model without provenance.
+* A model without clear authorization.
+* A mandatory capacity without an approved model.
+An experimental build may exist, but it must be clearly marked as:
+“LOCAL DEVELOPMENT COMPILATION – DO NOT DISTRIBUTE.”
+Don't reduce separation quality just to solve a licensing issue. If there is not a
+equivalent substitute, reports the blockage and leaves the architecture ready to later connect a
+licensed model.
+7. Python Runtime
+The application must not depend on user-installed Python, Homebrew, Conda, pyenv, or tools
+of Apple development.
+It incorporates its own, reproducible and relocatable Python.
+Requirements:
+* Exact version posted.
+* Official source.
+* URL and SHA-256 of the source.
+* Apple Silicon arm64 architecture.
+* Minimum macOS target defined.
+* Absence of absolute paths of the compilation computer.
+* Absence of links to /opthomebrew, /usr/local or /Users/name.
+* Reproducible integrated OpenSSL.
+* Integrated Izma support without Homebrew.
+* Provenance record in PROVENANCE .json.
+* PYTHONHOME configured by launchers.
+* PYTHONNOUSERSITE=1.
+* Python and JIT caches outside of the signed bundie.
+* Prohibition of generating pyc, nbi or nbc within the application after signing it.
+8. Reduction of dependencies
+Reduces dependencies without affecting separation or quality.
+Eliminates tools used only during construction, for example:
+*pip.
+* setuptools.
+* Cython.
+Free document for assisted construction with Codex 7
+
+--- Page 8 ---
+[PROMPT MASTER
+* Test suites.
+* Examples.
+* Compilers.
+* Backends not used.
+* Binaries of incompatible architectures.
+Don't remove a dependency without checking how it actually works.
+Rejects:
+* Non-commercial dependencies in a distributable version.
+* Components with incompatible license.
+* x86_64 binaries only.
+* Links to paths on the developer's computer.
+* Models from mirrors without verifiable origin.
+9. LGPL, powers and SBOM
+If an LGPL library is needed:
+* Use dynamic linking when appropriate.
+* Includes the full license.
+*Include exact source code or a valid offer where required.
+* Provides instructions for replacing the library.
+* Documents how to re-sign the application.
+* Records its hash and version.
+Automatically generate:
+* THIRD_PARTY_NOTICES.txt.
+* SBOM CycioneDX JSON.
+* Folder with complete license texts.
+* Model manifesto.
+* Compliance report.
+* LGPL instructions.
+The SBOM and notices should be generated from the actual, sanitized content of the application, not from a list
+manual that may become obsolete.
+10. Playback architecture
+Playback should behave like a simple multitrack mixer.
+Don't use a separate, uncoordinated player for each file. Uses a single audio clock and
+a single timeline, preferably using AVAudioEngine, AVAudioPlayerNode, or an architecture
+equivalent.
+Free document for assisted construction with Codex 8
+
+--- Page 9 ---
+[PROMPT MASTER
+All tracks must:
+* Start on exactly the same sample.
+* Keep the same duration.
+* Keep the same sampling rate.
+* Stay synchronized throughout playback.
+* Respond together to play, pause, stop and seek.
+General controls:
+* Play.
+* Pause.
+* Stop, if its behavior is clearly differentiated.
+* Progress bar.
+* Current time.
+* Total duration.
+* Click and drag on the bar to change the playback point.
+* Space key to alternate play and pause.
+The space shortcut should not be activated while the user is typing in a text field.
+11. Real-time behavior
+* Pressing mute should not stop playback.
+* Pressing alone should not stop playback.
+* Changing the volume should not stop playback.
+* None of these operations should return the cursor to the beginning.
+* Seek during playback should continue from the new point.
+* The seek should be smooth, without bounce, double attack, clicks or noticeable silences.
+* Implement a short crossfade or gain ramps when seeking.
+*Do not reset the entire engine to change mute, solo or volume.
+* Play after pause should continue from current position.
+* The meaning of Stop and "return to the beginning" must be explicit.
+12. Mixer
+Each track must show:
+* Name.
+* Icon or color.
+* Mute button.
+* Solo button.
+* Volume control.
+Free document for assisted construction with Codex 9
+
+--- Page 10 ---
+[PROMPT MASTER
+* Percentage or volume value.
+* Simple meter optional, only if running smoothly.
+Solo logic should allow one or more solos.
+When there is at least one active solo, only the tracks should be played solo, except those that also
+are on mute.
+Gain changes should use short ramps to avoid clicks.
+13. Mix Export
+Add an “Export Mix” button.
+The exported mixture must exactly respect:
+* Volume of each track.
+* Mute.
+* Only.
+* Alignment.
+* Duration.
+* Sampling frequency.
+* Number of channels.
+* Common starting point.
+The export should not depend on real-time playback. Perform it offline with sample precision.
+Avoid clipping:
+* Detects the final peak.
+* Warn or apply protection only when necessary.
+* Silently nonomalize if that changes the user's intent.
+* Document any limiters or gain reductions.
+Exports at least WAV PCM, maintaining the highest reasonable quality.
+14. Interface structure
+Left panel:
+1. Input file.
+2. What to extract.
+3. Work folder.
+4. “Separate and export” button.
+Right panel:
+1. Process status.
+2. General player.
+Free document for assisted construction with Codex 10
+
+--- Page 11 ---
+[PROMPT MASTER
+3. Temporal bar.
+4. Track list.
+5. Mute, Solo and Volume Controls.
+6. “Export Mix” button.
+7. “Open folder” button.
+During separation it shows:
+* Current stage.
+* Real progress.
+* Model used.
+* Understandable errors.
+* Secure cancellation option.
+Don't display an internal Python trace as the only message to the user. Save the technical detail in a
+log and shows a clear explanation with a possible solution.
+15. File Security
+Never write models, caches or temps inside:
+/Applications/Ariel's Splitter.app
+An installed application should be considered read-only.
+Save mutable data in appropriate locations:
+* Application Support.
+* Caches.
+* Temporary Directory.
+* Work folder chosen by the user.
+Don't try to create temporary files inside Resources/Engine or the models folders.
+Check permissions after installing via PKG, not just from the development folder.
+Installed models must be readable by normal users.
+16. macOS Packaging
+Generates:
+* Ariel's Splitter.app.
+* ZIP file.
+* PKG installer.
+The application must be installed on:
+/Applications/Ariel's Splitter.app
+The PKG must:
+Free document for assisted construction with Codex n
+
+--- Page 12 ---
+[PROMPT MASTER
+* Maintain correct permissions.
+* Install readable resources.
+* Allow running the runtime.
+*Does not require Homebrew.
+* No external Python required.
+* Do not write within the application during use.
+Adds support for:
+* Developer ID Application signature.
+* Developer ID Installer signature.
+* Hardened Runtime.
+* Minimum entitlements.
+* Notarization.
+* Stapling.
+If no certificates are available, generate a local ad-hoc build and clearly indicate that it is unsigned
+nor notarized and is not yet a final commercial installer.
+17. Mandatory tests
+Do not consider the application finished because it compiles. Test with real audio files.
+Check:
+1. Complete runtime import.
+2. Python, OpenSSL and Izma.
+3. PyTorch.
+4. ONNX Runtime.
+5. Torchaudio and TorchVision, if distributed.
+6. Bookish.
+7. Main separation motor.
+8. Vocal models.
+9. Noise separation.
+10. Separation of effects.
+11. Detailed battery separation.
+12. Duration of all tracks.
+13. Sampling frequency.
+14. Number of channels.
+15. Non-silent files when there is a corresponding signal.
+16. Sample-to-sample synchronization.
+17. Reconstruction of the mixture.
+18. Mute during playback.
+Free document for assisted construction with Codex 12
+
+--- Page 13 ---
+[PROMPT MASTER
+19. Only during playback.
+20. Volume changes during playback.
+21. Seek soft.
+22. Temporal bar.
+23. Space shortcut.
+24. Mixture export.
+25. Clean installation using PKG.
+26. Execution from /Applications.
+27. Running with the application in read-only mode.
+28. Absence of Homebrew routes.
+29. Absence of /Users paths on the compilation computer.
+30. Arm64 architecture of all binaries.
+31. Bundie signature.
+32. PKG BOM Permits.
+33. Validity of the SBOM.
+34. Model hashes.
+35. Absence of unauthorized models in a public compilation.
+Do not consider a silent file as correct proof of separation.
+Use a test song that actually contains the instrument being validated. For battery
+detailed, uses a recording with real kick, snare, toms and cymbals.
+18. Reports
+After each major review, submit a report with:
+* Functions implemented.
+* Models used.
+*Verified licenses.
+* Dependencies removed.
+* Tests carried out.
+* Results.
+* Bugs found.
+* Bugs fixed.
+* Pending limitations.
+* Commercial status.
+* Signature and notarization status.
+* Installer hashes.
+Free document for assisted construction with Codex 13
+
+--- Page 14 ---
+[PROMPT MASTER
+19. Deliver in every iteration
+After completing each request, provide clickable links to:
+* .app application.
+* ZIP file.
+* PKG installer.
+* Corresponding report.
+Do not present as “ready to sell” a compilation that:
+* Use ambiguously licensed weights.
+*It is not signed.
+*Not notarized.
+* Has not passed a clean installation.
+* Write within your own bundle.
+*Depends on the developer's computer.
+20. Form of work
+Before changing files:
+* Inspect the current status.
+* Retains existing modifications.
+* Avoid destructive operations.
+* Documents important technical decisions.
+Make reasonable decisions that allow you to move forward, always within the scope of the project.
+When a feature depends on current information, such as versions, models, licenses, or
+notarization, verify official sources instead of relying solely on memory.
+21. Final success criterion
+Ariel's Splitter will be finished when:
+* Be a native and visually neat application.
+* Only separate tracks that you can actually generate.
+*Tracks contain real audio.
+* Other works as a correct plugin.
+* The mixer is sample-accurate.
+* Mute, solo, volume and seek work without stopping playback.
+* The exported mix matches what you heard.
+* Run from /Applications.
+* Don't depend on Homebrew or external Python.
+Free document for assisted construction with Codex 14
+
+--- Page 15 ---
+[PROMPT MASTER
+* Incorporate a reproducible runtime.
+*Include attributions, SBOM and LGPL compliance.
+* Only distribute models with an unequivocal license.
+* Be signed, notarized, and tested via a clean install before being considered commercial.
+22. First execution
+Start in this order:
+1. Inspect the workspace.
+2. Create a technical inventory.
+3. Research models and prepare a licensing table.
+4. Design the architecture.
+5. Present an implementation plan.
+6. Build the first working version.
+7. Run real tests.
+8. Correct the errors.
+9. Generate the application and installers.
+10. Deliver a verifiable report.
+Continue working until you deliver the best possible result, without simulating non-existent capabilities or hiding
+legal or technical limitations.
+Distribution notice
+This prompt can be published freely for each user to use in their own Codex account.
+Don't share API keys, credentials, or accounts. The code, dependencies and models that are incorporated
+during construction may be subject to third-party licenses and should be reviewed before distributing a
+resulting application.
+Codex is a product of OpenAl. This document is independent and does not imply affiliation, sponsorship or
+official support from OpenAl.
+Free document for assisted construction with Codex 15

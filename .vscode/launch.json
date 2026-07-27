@@ -1,0 +1,24 @@
+{
+    "configurations": [
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:MyTracks}/Ariel's Splitter",
+            "name": "Debug ArielSplitter (Ariel's Splitter)",
+            "target": "ArielSplitter",
+            "configuration": "debug",
+            "preLaunchTask": "swift: Build Debug ArielSplitter (Ariel's Splitter)"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:MyTracks}/Ariel's Splitter",
+            "name": "Release ArielSplitter (Ariel's Splitter)",
+            "target": "ArielSplitter",
+            "configuration": "release",
+            "preLaunchTask": "swift: Build Release ArielSplitter (Ariel's Splitter)"
+        }
+    ]
+}

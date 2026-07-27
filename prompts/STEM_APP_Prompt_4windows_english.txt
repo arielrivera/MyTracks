@@ -1,0 +1,687 @@
+Ariel's Splitter WINDOWS EDITION
+
+Master prompt to create the native edition of
+
+Windows with Codex
+Version 1.0 - July 2026
+How to use this document
+1. Open Codex on a Windows computer inside an empty project folder.
+2. Copy the complete prompt included below.
+3. Attach visual references and test audio files if available.
+4. Allow Codex to research, deploy, compile, test and generate the installer.
+5. Do not distribute the result until you verify models, dependencies, signature and operation in an installation
+clean.
+IMPORTANT: This document contains development instructions. Does not include trained models or
+grants rights to third-party software, datasets or weights. Each user is responsible for checking
+the licenses for all the components it incorporates.
+Free document for assisted construction with Codex 2
+
+--- Page 3 ---
+[ WINDOWS EDITION
+Acts as a software architect, senior Windows developer, digital audio specialist, machine
+learning applied to musical separation, product design, safety and packaging.
+
+I want you to design, program, test and package a desktop application for Windows from scratch
+called Ariel's Splitter.
+Work autonomously until you obtain a functional and verifiable application. Don't just describe code:
+inspects the environment, investigates, deploys, compiles, runs actual tests, and generates the final artifacts.
+If you encounter a technical or legal impossibility, do not hide it or pretend that a feature exists. Continue with
+everything that can be completed and explains exactly what model, license, certificate, device or resource
+missing.
+_4
+
+1. General objective
+Limbus Spjlit Pro will be a native Windows application to separate a musical mix into tracks
+independent through local artificial intelligence models.
+It should be aimed at musicians, producers, students and users without technical knowledge. The main flow
+will be: load a song, choose what to separate, choose a folder, process, listen to the tracks and export.
+Priorities, in this order:
+
+1. Real quality of separation.
+
+2. Exact synchronization of playback and export.
+
+3. Stability and absence of false silent files.
+
+4. Ease of use.
+
+5. Privacy and local processing.
+
+6. Compatibility with Windows 10 and Windows 11.
+
+7. Portability of the installer.
+
+8. Correct licenses and attributions.
+
+9. Minimalist, beautiful and worked design.
+Don't build a website, PWA, or Electron app.
+Develop a native Windows application. Prefer Cif with a current LTS version of .NET, WPF, and pattern
+MVVM for its maturity, stability and direct access to the audio system. You can use WinUI 3 only if
+you verify that packaging, multitrack playback, and compatibility with target versions are the same
+of reliable.
+Before pinning versions, check the current LTS version of .NET and supported versions of Windows App
+SDK, WPF, NAudio and the other dependencies. Records all versions in a reproducible way.
+2. Construction environment
+The final build and Windows tests must be run on real Windows or an official Windows runner.
+Windows.
+
+Free document for assisted construction with Codex 3
+
+--- Page 4 ---
+[ WINDOWS EDITION
+If Codex is working from macOS or Linux:
+* May prepare architecture, code and documentation.
+* You must create an automation or Cl to compile on Windows.
+*You should not claim that the EXE or installer works if it has not been tested on Windows.
+* You must provide an exact list of pending tests on a Windows computer.
+Set up a reproducible project using .NET solutions and projects, package locking files,
+PowerShell scripts and a clear folder structure.
+3. Name, identity and design
+Product name: Ariel's Splitter.
+The design must be:
+* Minimalist.
+* Clean.
+* Elegant.
+* Professional.
+* Friendly.
+* With visual personality.
+* With a recognizable and somewhat fun color palette, without being childish.
+Avoid a generic, excessively gray or prototype-like interface.
+Don't use the slogan "A mix. Only what you need."
+Use Fluent Design as a visual reference without turning the application into a generic copy of Windows
+Settings.
+Respect:
+* Title bar and minimize, maximize and close buttons.
+* Screen scaling at 100%, 125%, 150%, 175% and 200%.
+* Light and dark themes.
+* High contrast.
+* Keyboard navigation.
+* Screen readers and accessible names.
+* Small windows and 4K monitors.
+The logo, titles, and controls should never overlap the title bar.
+4. Main flow
+The user must be able to:
+1. Drag a song or select it with a native dialog.
+2. View name, format, duration, sample rate and channels.
+Free document for assisted construction with Codex 4
+
+--- Page 5 ---
+[ WINDOWS EDITION
+3. Choose exactly which instruments you want to separate.
+4. Choose a working folder and export using FolderPicker.
+5. Start the separation.
+6. View actual progress and current stage.
+7. Cancel safely.
+8. Listen to all generated tracks simultaneously.
+9. Apply mute, solo and independent volume.
+10. Change the playback point using a timeline.
+11. Export individual tracks.
+12. Export a mix with the current volumes, mute and solo.
+13. Open the results folder in File Explorer.
+Never save results to an unknown location. The user must explicitly choose the folder before
+to separate.
+Supports paths with spaces, Unicode characters, long names, and units other than C:. don't build
+commands concatenating strings without escaping.
+5. Track selector
+The interface must have “All” and “None” controls, as well as individual selectors.
+Desired categories:
+* Voices.
+* Main vocal.
+* Choirs and second voices.
+* Vocal effects, reverb or vocal environment.
+* Noise or artifacts.
+* Full battery.
+* Bass drum.
+* Box.
+* Toms.
+* Dishes.
+* Low.
+* Guitar.
+*Acoustic guitar, only if there is a really capable model.
+* Electric guitar, only if there is a really capable model.
+* Piano and keyboards.
+* Other instruments that can be separated using real and verifiable models.
+*Other.
+Don't show fake options or generate silent files to make it appear that a separation exists.
+Free document for assisted construction with Codex 5
+
+--- Page 6 ---
+[ WINDOWS EDITION
+If a technically valid and properly licensed model does not exist:
+* Leave the option disabled.
+* Explain why it is not available.
+*Do not generate an empty track.
+* Record the limitation in the report.
+6. Other Logic
+Plugin logic is mandatory.
+* If the user selects only “Voices”, exports “Voices.wav” and “Other.wav”.
+* Other must contain everything other than voice.
+* If you select “Battery” only, export “Full Battery.wav”, its details where applicable, and
+“Other.wav”.
+*Other should contain everything other than battery.
+* If you select multiple instruments, Other should contain everything that has not been selected.
+* If you select all categories, generates Other only if there is actual residual material left.
+* Other must not be an artificially created silent file.
+* The sum of the main and Other tracks should reconstruct the mix with as little error as possible.
+* Avoid duplicating material when exporting a master track and its subtracks simultaneously.
+For detailed voices:
+*Lead vocals and backing vocals must come from a real separation.
+* Vocal effects must not be a copy of the voice.
+*Noise must be a real independent track.
+* Intermally executes the necessary stages even if the user has not selected their results
+intermediates.
+* Don't force the user to understand dependencies between models.
+7. Research and separation engine
+Research current models before choosing them. Use primary sources: official repositories, model cards,
+Author publications and licenses included with weights.
+Mandatory conditions:
+* Completely local processing.
+* Without uploading songs.
+* No calls to payment APIs during separation.
+* No silently downloading models while a track is processing.
+* Explicit management of model installation.
+* SHA-256 hash of each model.
+Free document for assisted construction with Codex [
+
+--- Page 7 ---
+[ WINDOWS EDITION
+* Record of origin, version, license, author and capabilities.
+* Differentiation between code license and weight license.
+* Prohibition of assuming that the weights are commercial because the repository is MIT.
+In a distributable build, use only models whose weights have unambiguous permission to
+use, inclusion in applications, redistribution and commercial use where applicable.
+Deploy a manifest with:
+* Identifier.
+* Relative route.
+* SHA-256 hash.
+* Expected size.
+* Version.
+* Origin.
+* License.
+* Evidence of license.
+* Author and attribution.
+* Capacities.
+* Redistribution permission.
+* Commercial authorization.
+Implement a fail-closed verifier. The public build should fail for an unregistered, altered model,
+without provenance, without clear authorization or without the required capabilities.
+An experimental build may exist marked as:
+“LOCAL DEVELOPMENT COMPILATION – DO NOT DISTRIBUTE.”
+Don't reduce quality just to resolve a license. If there is no equivalent substitute, inform the
+blocking and leaves the architecture ready to connect an authorized model later.
+8. Python engine architecture
+The native Windows interface and the machine learning engine must be separate.
+Recommended architecture:
+* C application as main process.
+* Local Python engine as controlled secondary process.
+* Communication using JSON Lines, named pipes or a documented local protocol.
+*Standard departure reserved for structured events.
+* Error output and separate technical logs.
+* Cancellation by controlled signal and cleaning of child processes.
+* Never use cmd.exe with commands constructed by concatenating user text.
+* Use ProcessStartinfo.ArgumentList or a safe equivalent mechanism.
+Free document for assisted construction with Codex 7
+
+--- Page 8 ---
+[ WINDOWS EDITION
+Closing the application should successfully terminate engine processes without leaving python.exe or
+inference running.
+
+9. Own and reproducible Python
+Don't depend on user-installed Python, Microsoft Store, Chocolatey, Conda, pyenv-win, or Visual
+Studio.
+It includes its own Python for Windows.
+Requirements:
+* Exact version posted.
+* Verifiable official source or distribution.
+* URL and SHA-256.
+* x64 architecture as the main objective.
+* Separate ARM64 edition only if all dependencies are ARM64 native.
+* Absence of compilation computer paths.
+* PYTHONHOME and PYTHONNOUSERSITE configured.
+* No access to user site-packages.
+* Without pip, setuptools or compilers in the final product, unless demonstrated need.
+* Python, Torch, ONNX and JIT caches outside of Program Files.
+* Provenance record in PROVENANCEjson.
+Don't copy an arbitrary installation from the developer's computer. Build or assemble the runtime
+using a reproducible script and checks all your binaries.
+10. CPU, GPU and acceleration
+The application should always run on the CPU, even if it is slower.
+Safely detect:
+* CPU and memory available.
+* NVIDIA GPU supported.
+* CUDA/cuDNN only if the chosen distribution requires it and its licenses allow them to be packaged.
+* DirectML, ONNX Runtime or other acceleration only when model and quality are verified.
+Don't introduce a GPU option that fails silently.
+Requirements:
+* Auto selector, CPU and GPU when applicable.
+* Automatic fallback to CPU with clear explanation.
+* Memory pretest before processing long songs.
+* Division into segments without losing continuity.
+* Comprehensible messages in the event of insufficient memory.
+Free document for assisted construction with Codex L
+
+--- Page 9 ---
+[ WINDOWS EDITION
+* Same sample rate, duration and alignment regardless of device.
+* Numerical comparison between CPU and GPU to detect major degradations.
+Avoid including multiple gigabytes of GPU runtimes if they can be supplied as an optional package. The CPU edition
+It must be fully functional.
+11. Dependencies and native libraries
+Reduces dependencies without affecting quality or stability.
+Remove from distribution:
+*pip.
+* setuptools.
+* Cython.
+* Tests.
+* Examples.
+* Compilers.
+* Unnecessary development headers.
+* Backends not used.
+* DLL of incorrect architectures.
+* Third party PDB files not required by the end user.
+Don't remove a dependency without running real tests afterwards.
+Audit all DLLs and executables:
+* Correct x64 0 ARM64 architecture.
+* Visual C++ Runtime dependencies.
+* Secure search paths.
+* Absence of missing DLLs.
+* Absence of dependencies loaded from user folders or the global PATH.
+* Reproducible hashes.
+* Compatible licenses.
+Prevents DLL search-order vulnerabilities. Only load libraries from controlled locations and
+uses safe DLL search APIs.
+12. FFmpeg, libsndfile and formats
+Supports at least WAV natively and reliably.
+If you incorporate FFmpeg or other libraries for MP3, FLAC, AAC or M4A:
+* Determines if the build is LGPL or GPL.
+* Do not include GPL codecs in a closed application without evaluating the consequences.
+*Includes license text and fonts where applicable.
+Free document for assisted construction with Codex 9
+
+--- Page 10 ---
+[ WINDOWS EDITION
+* Records build, version and hash options.
+* Allows LGPL libraries to be replaced when required.
+Don't trust the user to have FFmpeg installed in PATH.
+13. LGPL, powers and SBOM
+If an LGPL library is needed:
+* Use dynamic linking when appropriate.
+* Includes the full license.
+*Include exact source code or a valid offer.
+* Provides replacement instructions.
+* Documents how to rebuild and re-sign.
+* Records hash and version.
+Automatically generate:
+* THIRD_PARTY_NOTICES.txt.
+* SBOM CycloneDX JSON.
+* Folder with complete licenses.
+* Model manifesto.
+* Compliance report.
+* LGPL instructions.
+Generate the SBOM from the actual, sanitized content of the final version, not from a manual list.
+14. Playing audio in Windows
+Playback should behave like a simple and precise multitrack mixer.
+It uses a single output device, a single clock, and a single timeline. A suitable option is NAudio with
+WASAPI and a single MixingSampleProvider, as long as synchronization is demonstrated by testing.
+Don't open a separate, uncoordinated player for each track.
+All tracks must:
+* Start on the same sample.
+* Keep duration, channels and sample rate supported.
+* Stay synchronized throughout playback.
+* Respond together to play, pause, stop and seek.
+* Share the same position counter.
+Allows you to select the Windows audio device and react correctly if it is disconnected or the device changes.
+default device.
+Use shared WASAPI as stable mode by default. Add exclusive mode only if it is really
+tested and provides value.
+Free document for assisted construction with Codex 10
+
+--- Page 11 ---
+[ WINDOWS EDITION
+15. Real-time controls and behavior
+General controls:
+
+* Play.
+
+* Pause.
+
+* Stop with clear semantics.
+
+* Progress bar.
+
+* Current time.
+
+* Total duration.
+
+* Click and drag to make search.
+
+* Space key to toggle play and pause.
+
+The space shortcut should not be activated when typing in text fields or while a modal dialog is open.
+Mandatory behavior:
+
+* Mute does not stop playback.
+
+* Only does not stop playback.
+
+*Volume does not stop playback.
+
+* These changes do not return the cursor to the start.
+
+* Seek continues from the selected point.
+
+* Seek produces no perceptible bounce, double attack, click or silence.
+
+* Use crossfade or short gain ramps.
+
+* Don't unnecessarily rebuild the entire audio device.
+
+* Play after pause continues from current position.
+Manage device changes, system suspension and return from suspension without leaving the engine
+blocked.
+
+16. Mixer
+Each track must show:
+
+* Name.
+
+* Icon or color.
+
+* Mute button.
+
+* Solo button.
+
+* Volume control.
+
+* Percentage or volume value.
+
+* Optional meter, only if it works fluently.
+
+Allows one or several solos.
+When there is at least one active solo, only the soloed tracks should play, except those that are also soloed.
+on mute.
+
+Free document for assisted construction with Codex n
+
+--- Page 12 ---
+[ WINDOWS EDITION
+Changes should use ramps to avoid clicks.
+17. Mix Export
+Add an “Export Mix” button.
+The exported mixture must exactly respect:
+* Volume per track.
+* Mute.
+* Only.
+* Alignment.
+* Duration.
+* Sampling frequency.
+* Channels.
+* Common starting point.
+Perform offline export with sample precision. Do not record the device's output in real time.
+Avoid clipping:
+* Calculate the final peak.
+* Warn or apply protection only when necessary.
+*Nonormalize silently.
+* Document any limiters or gain reductions.
+Export at least WAV PCM.
+18. Interface
+Left panel:
+1. Input file.
+2. What to extract.
+3. Work folder.
+4. CPU/GPU device where applicable.
+5. “Separate and export” button.
+Right panel:
+1. Process status.
+2. General player.
+3. Temporal bar.
+4. Track list.
+5. Mute, Solo and Volume.
+6. “Export Mix” button.
+Free document for assisted construction with Codex 12
+
+--- Page 13 ---
+[ WINDOWS EDITION
+7. “Open folder” button.
+During separation it shows stage, progress, model, device and understandable errors.
+Don't show a Python trace as the only message. Save the details in logs and present a clear explanation
+with a possible solution.
+19. Routes, permissions and mutable data
+An installed application should be considered read-only.
+Never write models, caches or temps inside:
+C:WProgram FilesWAriel's Splitter
+Use appropriate Windows locations:
+* HLOCALAPPDATA%NAriel's Splitter for data per user.
+* %LOCALAPPDATA%NAriel's SplitterModels for user downloadable models.
+* HLOCALAPPDATA%NWAriel's SplitterNCache for caches.
+* %TEMP% for process temps.
+* %PROGRAMDATA% only for shared data that really needs it.
+* Folder chosen by the user for exports.
+Do not require administrator privileges to process audio.
+Temporaries must have unique names, be cleared upon success, and be kept in a controlled manner before a
+fault useful for diagnosis.
+Correctly manage OneDrive, network folders, and external drives. Don't assume that all files are
+local or that remain available throughout the process.
+20. Windows Installer
+Generates:
+* Portable development application, if useful.
+* Professional MSI installer or Setup EXE.
+* SHA-256 checksums.
+* Installed content report.
+Evaluate WIiX Toolset for MSI and a bootstrapper only if necessary. MSIX can be used if your
+File restrictions, large models, updates, and mutable data fit the architecture.
+The installer must:
+* Show publisher, version and destination.
+* Install in Program Files for per-machine installation or in LocalAppData for per-user installation.
+* Do not overwrite user documents.
+* Create correct shortcuts.
+* Log a clean uninstall.
+Free document for assisted construction with Codex 13
+
+--- Page 14 ---
+[ WINDOWS EDITION
+* Preserve projects and exports when uninstalling.
+* Only delete caches if the user requests it.
+* Update without duplicating installations.
+* Check available space.
+* Avoid hidden downloads during installation.
+Try installation, update, repair and uninstall.
+21. Signature, SmartScreen and security
+Adds support for Authenticode signing of:
+* Main executable.
+* Own DLLs.
+* Auxiliary processes.
+* MSI installer or Setup EXE.
+Use a valid code signing certificate and RFC 3161 timestamp.
+Do not submit a self-signed signature as a final public distribution.
+Verify the signature using SignTool and PowerShell. Check the behavior of Microsoft Defender
+SmartScreen on a clean machine.
+Don't request antivirus exclusions as a normal solution. If Defender detects a false positive:
+* Reduces opaque packers.
+* Avoid suspicious self-extracting executables.
+* Sign correctly.
+* Submit the file for Microsoft review.
+* Document the affected hash.
+Do not store signing secrets or passwords in the repository.
+22. Logs, errors and recovery
+Save rotating logs in a folder per user.
+Don't register songs, credentials, entire private paths, or sensitive content unnecessarily.
+Messages must differentiate:
+* Model absent.
+* Incorrect hash.
+* Format not supported.
+* Insufficient memory.
+*GPU not supported.
+* Permission denied.
+Free document for assisted construction with Codex 14
+
+--- Page 15 ---
+[ WINDOWS EDITION
+* File locked by another application.
+* Network path disconnected.
+* Audio device not available.
+* User cancellation.
+The application must be able to recover from a failure without requiring a restart of Windows.
+23. Mandatory tests
+Do not consider the application finished because it compiles.
+Test on Windows 10 and Windows 11, at least x64.
+Check:
+1. Reproducible build from a clean checkout.
+2. Boot without Visual Studio installed.
+3. Boot without Python from the system.
+4. Integrated Python, SSL and Izma.
+5. PyTorch or ONNX Runtime.
+6. Main separation motor.
+7. Vocal models.
+8. Noise separation.
+9. Separation of effects.
+10. Detailed battery separation.
+11. CPU.
+12. GPU supported, if offered.
+13. Fallback from GPU to CPU.
+14. Duration of all tracks.
+15. Sampling frequency.
+16. Channels.
+17. Files not silent when signal exists.
+18. Sample-to-sample synchronization.
+19. Reconstruction of the mixture.
+20. Mute during playback.
+21. Only during playback.
+22. Volume during playback.
+23. Seek soft.
+24. Temporal bar.
+25. Space shortcut.
+26. Mixture export.
+Free document for assisted construction with Codex 15
+
+--- Page 16 ---
+[ WINDOWS EDITION
+27. Changing audio device.
+28. Windows Suspend and Resume.
+29. Unicode and long routes.
+30. OneDrive Folders.
+31. Locked files.
+32. Cancellation during each stage.
+33. Clean installation.
+34. Update from a previous version.
+35. Uninstallation.
+36. Running as an unprivileged user.
+37. Absence of writing in Program Files.
+38. Absence of compilation computer paths.
+39. Correct EXE and DLL architecture.
+40. Complete DLL dependencies.
+41. Authenticode signature.
+42. SmartScreen and Microsoft Defender.
+43. SBOM and licenses.
+44. Model hashes.
+45. Absence of unauthorized models in the public compilation.
+Don't consider a silent file as correct evidence.
+Use recordings that actually contain each instrument. For detailed drums, use a recording with
+kick, snare, toms and cymbals.
+24. Automation and Cl
+Create a Windows pipeline that:
+* Restore dependencies from locked versions.
+* Compile on Release x64.
+* Run unit and integration tests.
+* Check binary architecture.
+* Analyze DLL dependencies.
+* Generate SBOM.
+* Check licenses and models.
+* Build the installer.
+* Only sign in a protected environment when certificates exist.
+* Publish hashes and artifacts.
+The public pipeline should never include secrets or models that are not authorized for redistribution.
+Free document for assisted construction with Codex 16
+
+--- Page 17 ---
+[ WINDOWS EDITION
+25. Reports
+After each major review, submit a report with:
+* Functions implemented.
+* Models used.
+*Verified licenses.
+* Dependencies removed.
+* Tests carried out.
+*Tested computers and Windows versions.
+* CPU and GPU results.
+* Bugs found and fixed.
+* Pending limitations.
+* Commercial status.
+* Signature status.
+* SmartScreen status.
+* Installer hashes.
+26. Deliver in every iteration
+After each request provide links to:
+* Development folder or ZIP.
+* Portable executable, if it exists.
+* MSI or Setup EXE.
+* Test report.
+* SBOM and legal notices.
+Do not present as “ready to sell” a compilation that:
+* Use ambiguously licensed weights.
+*It is not signed.
+* You have not passed a clean installation.
+* Write inside Program Files.
+*Depends on the developer's computer.
+* Be detected by Defender without having investigated the reason.
+27. Form of work
+Before changing files:
+* Inspect the current status.
+* Retains existing modifications.
+Free document for assisted construction with Codex 17
+
+--- Page 18 ---
+[ WINDOWS EDITION
+* Avoid destructive operations.
+* Documents technical decisions.
+Check Windows versions, licenses and requirements using current official sources.
+Make reasonable decisions moving forward, but don't replace a requested feature with a simpler one
+just to get the tests passed.
+28. Final success criterion
+Ariel's Splitter for Windows will be finished when:
+* Be a native and visually neat application.
+* Only separate tracks that you can actually generate.
+*Tracks contain real audio.
+* Other works as a correct plugin.
+* The mixer is sample-accurate.
+* Mute, solo, volume and seek work without stopping playback.
+* The exported mix matches what you heard.
+* Work on Windows 10 and Windows 11 without developer tools.
+*Do not depend on the user's Python, Chocolatey or Visual Studio.
+* Incorporate a reproducible runtime.
+* Run on CPU and properly handle optional throttling.
+* Do not write to Program Files.
+*Include attributions, SBOM and LGPL compliance.
+* Only distribute models with an unequivocal license.
+* Have verified installer, update and uninstall.
+* Be signed with Authenticode before considering it commercial.
+29. First execution
+Start in this order:
+1. Inspect the workspace and current operating system.
+2. Create a technical inventory.
+3. Research models and prepare a licensing table.
+4. Choose WPF or WinUI 3 justifying the decision.
+5. Design the Cát and Python architecture.
+6. Present an implementation plan.
+7. Build the first working version.
+8. Run real audio tests.
+9. Correct the errors.
+Free document for assisted construction with Codex 18
+
+--- Page 19 ---
+[ WINDOWS EDITION
+10. Generate the Windows installer.
+11. Run a clean installation.
+12. Deliver artifacts and verifiable report.
+Continue working until you deliver the best possible result, without simulating non-existent capabilities or hiding
+legal, technical or compatibility limitations.
+. . A"z
+Distribution notice
+This prompt can be published free of charge for each user to use with their own Codex account.
+Don't share API keys, credentials, signing certificates, or accounts. The code, dependencies and
+Models incorporated during construction may be subject to third party licensing and should be reviewed
+before distributing the resulting application.
+Codex is a product of OpenaAl. This document is independent and does not imply affiliation, sponsorship or
+Official Openal endorsement.
+Free document for assisted construction with Codex 19
