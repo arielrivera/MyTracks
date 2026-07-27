@@ -77,6 +77,11 @@ class AppViewModel: ObservableObject {
     func loadAudioFile(url: URL) {
         appLog("loadAudioFile(url: \(url.path))")
         Task { @MainActor in
+            guard FileManager.default.fileExists(atPath: url.path) else {
+                self.separationState = .failed("File not found: \(url.lastPathComponent)")
+                return
+            }
+            
             let didAccess = url.startAccessingSecurityScopedResource()
             defer {
                 if didAccess {
@@ -164,6 +169,11 @@ class AppViewModel: ObservableObject {
         appLog("startSeparation() called")
         guard let fileInfo = audioFileInfo, let outputDir = outputDirectory else {
             appLog("Cannot start separation: missing fileInfo or outputDir")
+            return
+        }
+        
+        guard FileManager.default.fileExists(atPath: fileInfo.url.path) else {
+            self.separationState = .failed("Input file not found: \(fileInfo.url.lastPathComponent)")
             return
         }
         

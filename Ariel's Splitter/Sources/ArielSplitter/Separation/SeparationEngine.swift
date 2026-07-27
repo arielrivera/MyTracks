@@ -136,6 +136,13 @@ final class SeparationEngine: @unchecked Sendable {
                            let mem = Double(parts[3]) {
                             state.lastResources = ResourceUsage(cpuPercent: cpu, memoryGB: mem)
                         }
+                    } else if trimmed.hasPrefix("ERROR:") {
+                        let errorMsg = String(trimmed.dropFirst(6))
+                        engineLog("Error: \(errorMsg)")
+                        let resources = state.lastResources
+                        Task { @MainActor in
+                            progressHandler(state.lastProgress, "Error: \(errorMsg)", resources)
+                        }
                     } else if trimmed.hasPrefix("WARNING:") {
                         engineLog("Warning: \(trimmed.dropFirst(8))")
                     } else if trimmed == "DONE" {

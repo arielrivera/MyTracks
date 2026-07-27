@@ -45,6 +45,17 @@ def separate(input_file, output_dir, stems_to_extract, model_name="htdemucs"):
     """
     Separate audio using Demucs.
     """
+    if not os.path.exists(input_file):
+        print(f"ERROR:Input file not found: {input_file}", flush=True)
+        sys.exit(1)
+    
+    if not os.path.isdir(output_dir):
+        try:
+            os.makedirs(output_dir, exist_ok=True)
+        except Exception as e:
+            print(f"ERROR:Could not create output directory {output_dir}: {e}", flush=True)
+            sys.exit(1)
+    
     resource_stop_event = threading.Event()
     start_resource_monitor(resource_stop_event)
     

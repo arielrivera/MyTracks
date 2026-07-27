@@ -31,7 +31,7 @@ struct ArielSplitterApp: App {
             CommandMenu("Debug") {
                 Button("Run Auto Test") {
                     let testURL = URL(fileURLWithPath: NSHomeDirectory())
-                        .appendingPathComponent("Downloads/SteveVai-TenderSurrender.mp4")
+                        .appendingPathComponent("Downloads/samplesong.x")
                     appViewModel.loadAudioFile(url: testURL)
                     DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
                         appViewModel.startSeparation()
