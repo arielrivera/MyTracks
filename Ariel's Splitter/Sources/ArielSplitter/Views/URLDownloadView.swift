@@ -354,6 +354,16 @@ struct URLDownloadView: View {
             Label("Up to date (\(version))", systemImage: "checkmark.circle")
                 .font(.system(size: AppStyle.captionFontSize))
                 .foregroundColor(.appSuccess)
+        case .checkUnavailable(let current):
+            VStack(alignment: .leading, spacing: 2) {
+                Label("Couldn't check for updates", systemImage: "wifi.slash")
+                    .font(.system(size: AppStyle.captionFontSize))
+                    .foregroundColor(.appWarning)
+                Text("Installed: \(current). The latest version could not be looked up — check your connection.")
+                    .font(.system(size: AppStyle.captionFontSize))
+                    .foregroundColor(.appTextSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         case .updateAvailable(let current, let latest):
             Label("Update available: \(current) → \(latest)", systemImage: "arrow.up.circle")
                 .font(.system(size: AppStyle.captionFontSize))

@@ -284,7 +284,14 @@ class AppViewModel: ObservableObject {
             }
             self.ytDlpVersion = check.current
 
-            if let latest = check.latest, check.isOutdated {
+            guard let latest = check.latest else {
+                // No "Latest version:" line means the lookup never completed —
+                // usually no network. Saying "up to date" here would be a guess.
+                self.updateState = .checkUnavailable(current: check.current)
+                return
+            }
+
+            if check.isOutdated {
                 self.updateState = .updateAvailable(current: check.current, latest: latest)
             } else {
                 self.updateState = .upToDate(version: check.current)

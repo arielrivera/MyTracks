@@ -9,6 +9,10 @@ enum UpdateState: Equatable {
     case idle
     case checking
     case upToDate(version: String)
+    /// Installed version known, but the latest could not be determined — most
+    /// often no network. Distinct from `upToDate` on purpose: reporting "up to
+    /// date" when the check never completed is a false reassurance.
+    case checkUnavailable(current: String)
     case updateAvailable(current: String, latest: String)
     case updating
     case updated(from: String, to: String)
