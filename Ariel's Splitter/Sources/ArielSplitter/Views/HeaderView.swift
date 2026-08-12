@@ -32,13 +32,23 @@ struct HeaderView: View {
             }
             
             Spacer()
-            
+
             if appViewModel.hasAudioFile {
                 Button(action: { appViewModel.reset() }) {
                     Label("New Session", systemImage: "plus.square")
                 }
                 .buttonStyle(.secondary)
             }
+
+            Button(action: { appViewModel.openSettings() }) {
+                Image(systemName: "gearshape")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(.appTextSecondary)
+            }
+            .buttonStyle(.plain)
+            .hoverHighlight(padding: 6)
+            .help("Settings (⌘,)")
+            .accessibilityLabel("Settings")
         }
     }
 }

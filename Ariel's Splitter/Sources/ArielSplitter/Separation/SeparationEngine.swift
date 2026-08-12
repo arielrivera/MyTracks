@@ -10,6 +10,24 @@ final class SeparationEngine: @unchecked Sendable {
     private var isCancelled = false
     private var currentProcess: Process?
     private let lock = NSLock()
+
+    /// Location of the Demucs wrapper script.
+    ///
+    /// The bundled copy wins, which means edits to the file in Sources/ only
+    /// take effect after a `swift build` refreshes the resource bundle. The
+    /// fallback is derived from this source file rather than a hard-coded
+    /// checkout: `#filePath` points at
+    /// Sources/ArielSplitter/Separation/SeparationEngine.swift, so two levels up
+    /// is the module root holding Resources/.
+    static var scriptURL: URL {
+        if let resourceURL = Bundle.main.url(forResource: "separate", withExtension: "py") {
+            return resourceURL
+        }
+        return URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()    // Separation/
+            .deletingLastPathComponent()    // ArielSplitter/
+            .appendingPathComponent("Resources/separate.py")
+    }
     
     func cancel() {
         lock.lock()
@@ -34,22 +52,7 @@ final class SeparationEngine: @unchecked Sendable {
         
         try FileManager.default.createDirectory(at: outputDirectory, withIntermediateDirectories: true)
         
-        let scriptURL: URL
-        if let resourceURL = Bundle.main.url(forResource: "separate", withExtension: "py") {
-            engineLog("Found script in bundle: \(resourceURL.path)")
-            scriptURL = resourceURL
-        } else {
-            // Derive the location from this source file rather than hard-coding
-            // one developer's checkout: #filePath points at
-            // Sources/ArielSplitter/Separation/SeparationEngine.swift, so two
-            // levels up is the module root that holds Resources/.
-            let devURL = URL(fileURLWithPath: #filePath)
-                .deletingLastPathComponent()    // Separation/
-                .deletingLastPathComponent()    // ArielSplitter/
-                .appendingPathComponent("Resources/separate.py")
-            engineLog("Using dev script path: \(devURL.path)")
-            scriptURL = devURL
-        }
+        let scriptURL = Self.scriptURL
         
         guard FileManager.default.fileExists(atPath: scriptURL.path) else {
             engineLog("Python script not found at \(scriptURL.path)")

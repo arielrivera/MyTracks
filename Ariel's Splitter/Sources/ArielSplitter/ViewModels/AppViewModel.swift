@@ -25,8 +25,23 @@ class AppViewModel: ObservableObject {
     @Published var updateState: UpdateState = .idle
     @Published var downloadDirectory: URL
     @Published var lastDownloadedVideoURL: URL?
+    @Published var clipboardSuggestion: String?
+    private var dismissedClipboardValue: String?
+
+    /// True once there is a link to act on, which is what reveals the download
+    /// options beneath the drop zone.
+    var hasPendingDownloadURL: Bool {
+        !downloadURLString.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            || downloadState.isActive
+    }
     @Published var ytDlpPath: URL?
     @Published var ytDlpVersion: String?
+
+    // MARK: - Settings
+    @Published var isShowingSettings = false
+    @Published var ffmpegPath: URL?
+    @Published var pythonInterpreter: PythonLocator.Interpreter?
+    @Published var isCheckingEnvironment = false
 
     // MARK: - Audio Engine
     private var audioEngine: AudioEngineManager?
@@ -55,10 +70,32 @@ class AppViewModel: ObservableObject {
         stemTracks.filter(\.isAvailable).contains(where: \.isSelected)
     }
     
+    /// Stage of the load → configure → separate → mix flow.
+    ///
+    /// The window shows only what belongs to the current stage: options that no
+    /// longer apply are removed rather than left on screen, so there is nothing
+    /// to fiddle with mid-run and nothing stale to read afterwards.
+    enum WorkflowPhase {
+        case needsFile      // nothing loaded yet
+        case ready          // loaded; choose stems, output folder, then start
+        case separating     // running; only progress and Cancel apply
+        case finished       // done; mixer and export only
+    }
+
+    var workflowPhase: WorkflowPhase {
+        guard hasAudioFile else { return .needsFile }
+        if separationState.isActive { return .separating }
+        if separationState == .completed { return .finished }
+        // Cancelled and failed fall back to .ready so the run can be retried.
+        return .ready
+    }
+
+    var urlValidation: URLValidator.Result {
+        URLValidator.validate(downloadURLString)
+    }
+
     var canStartDownload: Bool {
-        !downloadURLString.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            && !downloadState.isActive
-            && !separationState.isActive
+        urlValidation.isValid && !downloadState.isActive && !separationState.isActive
     }
 
     var isYtDlpAvailable: Bool { ytDlpPath != nil }
@@ -78,7 +115,84 @@ class AppViewModel: ObservableObject {
         let availability = MediaDownloader.checkAvailability()
         ytDlpPath = availability.ytDlp
         ytDlpVersion = availability.ytDlp.flatMap { MediaDownloader.installedVersion(of: $0) }
+        ffmpegPath = availability.ffmpeg
         appLog("yt-dlp: \(ytDlpPath?.path ?? "not found") version \(ytDlpVersion ?? "unknown")")
+    }
+
+    /// Probe the Python environment for the settings panel.
+    ///
+    /// Kept separate from `refreshToolStatus` because it spawns interpreters,
+    /// so it runs off the main thread and only when the panel is on screen.
+    func refreshEnvironmentStatus() {
+        guard !isCheckingEnvironment else { return }
+        isCheckingEnvironment = true
+
+        Task { @MainActor in
+            let scriptURL = SeparationEngine.scriptURL
+            let interpreter = await Task.detached {
+                PythonLocator.clearCache()
+                return PythonLocator.locate(scriptURL: scriptURL)
+            }.value
+
+            self.pythonInterpreter = interpreter
+            self.isCheckingEnvironment = false
+            appLog("python: \(interpreter?.url.path ?? "not found"), missing \(interpreter?.missingModules.joined(separator: ", ") ?? "-")")
+        }
+    }
+
+    func openSettings() {
+        isShowingSettings = true
+    }
+
+    // MARK: - Clipboard suggestion
+
+    /// Offer a URL sitting on the clipboard, rather than silently pasting it.
+    ///
+    /// macOS allows reading the pasteboard without a prompt, so this stays an
+    /// explicit suggestion the user accepts: nothing is filled in on their
+    /// behalf, and a dismissed value is not offered again.
+    func checkClipboardForURL() {
+        guard downloadURLString.isEmpty, !downloadState.isActive, !separationState.isActive else {
+            clipboardSuggestion = nil
+            return
+        }
+
+        guard let raw = NSPasteboard.general.string(forType: .string) else {
+            clipboardSuggestion = nil
+            return
+        }
+
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed != dismissedClipboardValue,
+              trimmed.count < 2048,
+              let url = URL(string: trimmed),
+              let scheme = url.scheme?.lowercased(),
+              scheme == "http" || scheme == "https",
+              url.host != nil else {
+            clipboardSuggestion = nil
+            return
+        }
+
+        clipboardSuggestion = trimmed
+    }
+
+    func acceptClipboardSuggestion() {
+        guard let suggestion = clipboardSuggestion else { return }
+        downloadURLString = suggestion
+        clipboardSuggestion = nil
+    }
+
+    func dismissClipboardSuggestion() {
+        dismissedClipboardValue = clipboardSuggestion
+        clipboardSuggestion = nil
+    }
+
+    /// Accept a link dropped onto the zone.
+    func acceptDroppedURL(_ url: URL) {
+        guard let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https" else { return }
+        appLog("Accepted dropped link: \(url.absoluteString)")
+        downloadURLString = url.absoluteString
+        clipboardSuggestion = nil
     }
     
     /// The user's Downloads folder, falling back to ~/Downloads if the system
@@ -208,9 +322,11 @@ class AppViewModel: ObservableObject {
 
     func startDownload() {
         appLog("startDownload() called for kind: \(downloadKind.rawValue)")
-        guard canStartDownload else { return }
+        guard canStartDownload, case .valid(let validatedURL) = urlValidation else { return }
 
-        let urlString = downloadURLString.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Use the normalised form so a scheme-less paste like "youtube.com/..."
+        // reaches yt-dlp as a proper https URL.
+        let urlString = validatedURL.absoluteString
         let kind = downloadKind
         let destination = downloadDirectory
 
@@ -319,20 +435,28 @@ class AppViewModel: ObservableObject {
     }
 
     // MARK: - Track Selection
+
+    /// The stem list is an input to a run, so it is frozen once one starts.
+    /// The UI hides the selector while separating; this guard means a change can
+    /// never land mid-run even if some other path reaches these methods.
+    private var canEditTrackSelection: Bool { !separationState.isActive }
+
     func selectAllTracks() {
+        guard canEditTrackSelection else { return }
         for i in stemTracks.indices where stemTracks[i].isAvailable {
             stemTracks[i].isSelected = true
         }
     }
-    
+
     func deselectAllTracks() {
+        guard canEditTrackSelection else { return }
         for i in stemTracks.indices where stemTracks[i].isAvailable {
             stemTracks[i].isSelected = false
         }
     }
-    
+
     func toggleTrack(_ track: StemTrack) {
-        guard let index = stemTracks.firstIndex(of: track) else { return }
+        guard canEditTrackSelection, let index = stemTracks.firstIndex(of: track) else { return }
         stemTracks[index].isSelected.toggle()
     }
     

@@ -36,6 +36,14 @@ struct ArielSplitterApp: App {
         .defaultSize(width: 800, height: 900)
         .commands {
             CommandGroup(replacing: .newItem) {}
+
+            // Put Settings where macOS users expect it: the app menu, ⌘,
+            CommandGroup(replacing: .appSettings) {
+                Button("Settings...") {
+                    appViewModel.openSettings()
+                }
+                .keyboardShortcut(",", modifiers: .command)
+            }
             CommandMenu("File") {
                 Button("Open Audio File...") {
                     appViewModel.openFileDialog()

@@ -14,8 +14,25 @@ struct FileInfoView: View {
             }
             
             if let info = appViewModel.audioFileInfo {
+                // Name and path get their own full-width rows and wrap freely.
+                // Sharing one row with the metadata badges gave the name a fifth
+                // of the width, which truncated all but the shortest filenames.
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(info.name)
+                        .font(.system(size: AppStyle.bodyFontSize, weight: .medium))
+                        .foregroundColor(colorScheme == .dark ? .appText : .appTextLight)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .textSelection(.enabled)
+
+                    Text(info.url.deletingLastPathComponent().path)
+                        .font(.system(size: AppStyle.captionFontSize, design: .monospaced))
+                        .foregroundColor(colorScheme == .dark ? .appTextTertiary : .appTextSecondaryLight)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .textSelection(.enabled)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
                 HStack(spacing: AppStyle.spacing) {
-                    FileInfoBadge(label: "Name", value: info.name)
                     FileInfoBadge(label: "Format", value: info.format)
                     FileInfoBadge(label: "Duration", value: info.formattedDuration)
                     FileInfoBadge(label: "Sample Rate", value: info.formattedSampleRate)

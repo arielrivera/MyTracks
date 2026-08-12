@@ -1,27 +1,24 @@
 import SwiftUI
 
+/// Download options for a link that has already been entered.
+///
+/// The URL field itself lives in the drop zone, which is the single entry point
+/// for getting media in; this panel only appears once there is something to act
+/// on, so the idle window stays uncluttered.
 struct URLDownloadView: View {
     @EnvironmentObject var appViewModel: AppViewModel
     @Environment(\.colorScheme) var colorScheme
-    @State private var showingToolDetails = false
-    @FocusState private var isURLFieldFocused: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: AppStyle.smallSpacing) {
             header
 
             if appViewModel.isYtDlpAvailable {
-                urlField
                 kindPicker
-                destinationRow
                 actionRow
                 statusSection
             } else {
                 missingToolNotice
-            }
-
-            if showingToolDetails {
-                toolDetails
             }
         }
         .padding(AppStyle.smallPadding)
@@ -37,65 +34,26 @@ struct URLDownloadView: View {
                 .font(.system(size: AppStyle.headingFontSize, weight: .semibold))
                 .foregroundColor(colorScheme == .dark ? .appText : .appTextLight)
             Spacer()
+            // Destination shown read-only; it is changed in Settings, which also
+            // holds the yt-dlp status and update controls that used to live here.
             Button {
-                withAnimation { showingToolDetails.toggle() }
+                appViewModel.openSettings()
             } label: {
-                Image(systemName: showingToolDetails ? "chevron.up.circle" : "gearshape")
-                    .foregroundColor(.appTextSecondary)
+                HStack(spacing: 4) {
+                    Image(systemName: "folder")
+                        .font(.system(size: AppStyle.captionFontSize))
+                    Text(appViewModel.downloadDirectory.lastPathComponent)
+                        .font(.system(size: AppStyle.captionFontSize))
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
             }
-            .buttonStyle(.plain)
-            .hoverHighlight()
-            .help("yt-dlp status and updates")
+            .buttonStyle(.link(color: .appTextSecondary))
+            .help("Saving to \(appViewModel.downloadDirectory.path) — change in Settings")
         }
     }
 
     // MARK: - Inputs
-
-    private var urlField: some View {
-        HStack(spacing: AppStyle.smallSpacing) {
-            Image(systemName: "link")
-                .foregroundColor(.appAccentSecondary)
-
-            TextField("Paste a video URL", text: $appViewModel.downloadURLString)
-                .textFieldStyle(.plain)
-                .font(.system(size: AppStyle.bodyFontSize))
-                .focused($isURLFieldFocused)
-                .disabled(appViewModel.downloadState.isActive)
-                .onSubmit {
-                    if appViewModel.canStartDownload { appViewModel.startDownload() }
-                }
-
-            if !appViewModel.downloadURLString.isEmpty && !appViewModel.downloadState.isActive {
-                Button {
-                    appViewModel.downloadURLString = ""
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundColor(.appTextTertiary)
-                }
-                .buttonStyle(.plain)
-                .hoverHighlight(cornerRadius: 10, padding: 2)
-                .help("Clear")
-            }
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(
-            RoundedRectangle(cornerRadius: AppStyle.smallCornerRadius)
-                .fill(colorScheme == .dark ? Color.appSurfaceLight : Color.appSurfaceLightLight)
-        )
-        .overlay(
-            // Focus ring, as a native text field draws when it becomes first responder.
-            RoundedRectangle(cornerRadius: AppStyle.smallCornerRadius)
-                .stroke(isURLFieldFocused ? Color.appAccent
-                                          : (colorScheme == .dark ? Color.appBorder : Color.appBorderLight),
-                        lineWidth: isURLFieldFocused ? 2 : 1)
-        )
-        // The plain TextField only occupies the text itself, so clicks on the
-        // surrounding padding would otherwise fall through and focus nothing.
-        .contentShape(Rectangle())
-        .onTapGesture { isURLFieldFocused = true }
-        .cursor(.iBeam)
-    }
 
     private var kindPicker: some View {
         Picker("", selection: $appViewModel.downloadKind) {
@@ -106,24 +64,6 @@ struct URLDownloadView: View {
         .pickerStyle(.segmented)
         .labelsHidden()
         .disabled(appViewModel.downloadState.isActive)
-    }
-
-    private var destinationRow: some View {
-        HStack(spacing: AppStyle.smallSpacing) {
-            Image(systemName: "folder.fill")
-                .foregroundColor(.appAccentSecondary)
-                .font(.system(size: AppStyle.captionFontSize))
-            Text(appViewModel.downloadDirectory.path)
-                .font(.system(size: AppStyle.captionFontSize))
-                .foregroundColor(.appTextSecondary)
-                .lineLimit(1)
-                .truncationMode(.middle)
-            Spacer()
-            Button("Change") { appViewModel.selectDownloadDirectory() }
-                .buttonStyle(.link())
-                .font(.system(size: AppStyle.captionFontSize, weight: .medium))
-                .disabled(appViewModel.downloadState.isActive)
-        }
     }
 
     private var actionRow: some View {
@@ -267,77 +207,6 @@ struct URLDownloadView: View {
                 )
             Button("Re-check") { appViewModel.refreshToolStatus() }
                 .buttonStyle(.secondary)
-        }
-    }
-
-    private var toolDetails: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Divider()
-
-            // Attribution: downloads are entirely the work of a separate
-            // open-source project, and its update cadence is why this panel
-            // exists at all.
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Powered by yt-dlp")
-                    .font(.system(size: AppStyle.captionFontSize, weight: .semibold))
-                    .foregroundColor(colorScheme == .dark ? .appText : .appTextLight)
-
-                Text("""
-                URL downloads are handled by yt-dlp, a free and open-source \
-                command-line media downloader supporting thousands of sites. \
-                It is a separate project, installed and updated independently \
-                of this app.
-                """)
-                    .font(.system(size: AppStyle.captionFontSize))
-                    .foregroundColor(.appTextSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                Text("""
-                Sites change their players often, which breaks extraction until \
-                yt-dlp catches up — so keeping it current is usually the fix \
-                when a download stops working.
-                """)
-                    .font(.system(size: AppStyle.captionFontSize))
-                    .foregroundColor(.appTextTertiary)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                Link("github.com/yt-dlp/yt-dlp",
-                     destination: URL(string: "https://github.com/yt-dlp/yt-dlp")!)
-                    .font(.system(size: AppStyle.captionFontSize, weight: .medium))
-                    .cursor(.pointingHand)
-            }
-            .padding(.bottom, 2)
-
-            Divider()
-
-            HStack {
-                Text("yt-dlp")
-                    .font(.system(size: AppStyle.captionFontSize, weight: .semibold))
-                    .foregroundColor(.appTextSecondary)
-                Spacer()
-                Text(appViewModel.ytDlpVersion ?? "not found")
-                    .font(.system(size: AppStyle.captionFontSize, design: .monospaced))
-                    .foregroundColor(.appTextSecondary)
-            }
-            if let path = appViewModel.ytDlpPath {
-                Text(path.path)
-                    .font(.system(size: AppStyle.captionFontSize, design: .monospaced))
-                    .foregroundColor(.appTextTertiary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-            }
-
-            HStack(spacing: AppStyle.smallSpacing) {
-                Button("Check for updates") { appViewModel.checkForToolUpdate() }
-                    .buttonStyle(.secondary)
-                    .disabled(!appViewModel.isYtDlpAvailable || appViewModel.updateState.isBusy)
-
-                if case .updateAvailable = appViewModel.updateState {
-                    Button("Update now") { appViewModel.updateTool() }
-                        .buttonStyle(.glass(color: .appWarning, compact: true))
-                }
-            }
-            updateStatusLine
         }
     }
 
