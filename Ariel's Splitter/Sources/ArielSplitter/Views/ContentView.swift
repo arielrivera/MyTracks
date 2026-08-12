@@ -9,7 +9,10 @@ struct ContentView: View {
             VStack(spacing: AppStyle.largeSpacing) {
                 // Header
                 HeaderView()
-                
+
+                // Fetch audio straight from a URL as an alternative to dropping a file
+                URLDownloadView()
+
                 if !appViewModel.hasAudioFile {
                     // Drag & Drop Zone
                     DragDropView()
@@ -68,8 +71,12 @@ struct ContentView: View {
     }
 }
 
+// The #Preview macro is backed by a plugin that ships with Xcode, not with the
+// Command Line Tools, so it cannot be expanded in a SwiftPM build.
+#if !SWIFT_PACKAGE
 #Preview {
     ContentView()
         .environmentObject(AppViewModel())
         .frame(width: 800, height: 900)
 }
+#endif

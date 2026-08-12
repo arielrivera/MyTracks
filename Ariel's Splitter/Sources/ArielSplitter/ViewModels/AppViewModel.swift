@@ -17,10 +17,21 @@ class AppViewModel: ObservableObject {
     @Published var isPlaying: Bool = false
     @Published var currentTime: TimeInterval = 0
     @Published var duration: TimeInterval = 0
-    
+
+    // MARK: - URL Download
+    @Published var downloadURLString: String = ""
+    @Published var downloadKind: DownloadKind = .audio
+    @Published var downloadState: DownloadState = .idle
+    @Published var updateState: UpdateState = .idle
+    @Published var downloadDirectory: URL
+    @Published var lastDownloadedVideoURL: URL?
+    @Published var ytDlpPath: URL?
+    @Published var ytDlpVersion: String?
+
     // MARK: - Audio Engine
     private var audioEngine: AudioEngineManager?
     private var separationEngine: SeparationEngine?
+    private var mediaDownloader: MediaDownloader?
     private var playbackTimer: Timer?
     
     // MARK: - Computed Properties
@@ -44,16 +55,53 @@ class AppViewModel: ObservableObject {
         stemTracks.filter(\.isAvailable).contains(where: \.isSelected)
     }
     
+    var canStartDownload: Bool {
+        !downloadURLString.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && !downloadState.isActive
+            && !separationState.isActive
+    }
+
+    var isYtDlpAvailable: Bool { ytDlpPath != nil }
+
     // MARK: - Initialization
     init() {
+        // Match the manual yt-dlp workflow, which saves into ~/Downloads.
+        downloadDirectory = Self.downloadsDirectory
         setupDefaultOutputDirectory()
         setupDefaultTracks()
+        refreshToolStatus()
+    }
+
+    /// Re-detect yt-dlp. Cheap enough to call on appearance, and keeps the UI
+    /// honest if the user installs or removes the tool while the app is running.
+    func refreshToolStatus() {
+        let availability = MediaDownloader.checkAvailability()
+        ytDlpPath = availability.ytDlp
+        ytDlpVersion = availability.ytDlp.flatMap { MediaDownloader.installedVersion(of: $0) }
+        appLog("yt-dlp: \(ytDlpPath?.path ?? "not found") version \(ytDlpVersion ?? "unknown")")
     }
     
+    /// The user's Downloads folder, falling back to ~/Downloads if the system
+    /// query fails. Shared by the separation output and the download destination.
+    static var downloadsDirectory: URL {
+        FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first
+            ?? URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Downloads")
+    }
+
     private func setupDefaultOutputDirectory() {
-        let defaultURL = URL(fileURLWithPath: "/Users/arielrivera/Downloads/ariels_splitter_output")
+        let defaultURL = Self.downloadsDirectory.appendingPathComponent("ariels_splitter_output")
         outputDirectory = defaultURL
-        try? FileManager.default.createDirectory(at: defaultURL, withIntermediateDirectories: true)
+
+        // If the folder cannot be created, leave outputDirectory nil rather than
+        // advertising a path we cannot write to: canStartSeparation checks for
+        // nil, so this surfaces as a disabled button instead of a run that fails
+        // only once Demucs tries to save its stems.
+        do {
+            try FileManager.default.createDirectory(at: defaultURL, withIntermediateDirectories: true)
+        } catch {
+            appLog("Could not create default output directory at \(defaultURL.path): \(error.localizedDescription)")
+            outputDirectory = nil
+        }
     }
     
     private func setupDefaultTracks() {
@@ -146,6 +194,123 @@ class AppViewModel: ObservableObject {
         outputDirectory = url
     }
     
+    // MARK: - URL Download
+    func selectDownloadDirectory() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.canCreateDirectories = true
+        panel.message = "Choose where to save downloaded media"
+
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        downloadDirectory = url
+    }
+
+    func startDownload() {
+        appLog("startDownload() called for kind: \(downloadKind.rawValue)")
+        guard canStartDownload else { return }
+
+        let urlString = downloadURLString.trimmingCharacters(in: .whitespacesAndNewlines)
+        let kind = downloadKind
+        let destination = downloadDirectory
+
+        downloadState = .preparing
+        lastDownloadedVideoURL = nil
+
+        Task { @MainActor in
+            let downloader = MediaDownloader()
+            self.mediaDownloader = downloader
+
+            do {
+                let result = try await downloader.download(
+                    urlString: urlString,
+                    kind: kind,
+                    destinationDirectory: destination,
+                    progressHandler: { state in
+                        Task { @MainActor in
+                            // A late progress line must not overwrite a terminal state.
+                            if self.downloadState.isActive || self.downloadState == .preparing {
+                                self.downloadState = state
+                            }
+                        }
+                    }
+                )
+
+                appLog("Download finished. audio: \(result.audio?.path ?? "none"), video: \(result.video?.path ?? "none")")
+                self.lastDownloadedVideoURL = result.video
+                self.downloadState = .completed(audioURL: result.audio, videoURL: result.video)
+
+                // Hand the audio straight to the existing separation pipeline.
+                if let audioURL = result.audio {
+                    self.loadAudioFile(url: audioURL)
+                }
+
+            } catch DownloadError.cancelled {
+                self.downloadState = .cancelled
+            } catch let error as DownloadError {
+                let failure = error.failure ?? DownloadFailure(message: error.localizedDescription)
+                appLog("Download failed: \(failure.message)")
+                self.downloadState = .failed(failure)
+            } catch {
+                self.downloadState = .failed(DownloadFailure(message: error.localizedDescription))
+            }
+
+            self.mediaDownloader = nil
+        }
+    }
+
+    func cancelDownload() {
+        mediaDownloader?.cancel()
+        downloadState = .cancelled
+    }
+
+    func revealDownloadedVideo() {
+        guard let url = lastDownloadedVideoURL else { return }
+        NSWorkspace.shared.activateFileViewerSelecting([url])
+    }
+
+    // MARK: - yt-dlp Maintenance
+    func checkForToolUpdate() {
+        guard let ytDlp = ytDlpPath, !updateState.isBusy else { return }
+        updateState = .checking
+
+        Task { @MainActor in
+            // Network round-trip; keep it off the main thread.
+            let check = await Task.detached { ToolUpdater.checkVersion(ytDlp: ytDlp) }.value
+
+            guard let check else {
+                self.updateState = .failed("Could not determine the installed yt-dlp version.")
+                return
+            }
+            self.ytDlpVersion = check.current
+
+            if let latest = check.latest, check.isOutdated {
+                self.updateState = .updateAvailable(current: check.current, latest: latest)
+            } else {
+                self.updateState = .upToDate(version: check.current)
+            }
+        }
+    }
+
+    func updateTool() {
+        guard let ytDlp = ytDlpPath, !updateState.isBusy else { return }
+        let previousVersion = ytDlpVersion ?? "unknown"
+        updateState = .updating
+
+        Task { @MainActor in
+            let outcome = await Task.detached { ToolUpdater.update(ytDlp: ytDlp) }.value
+
+            switch outcome {
+            case .success:
+                self.refreshToolStatus()
+                let newVersion = self.ytDlpVersion ?? "unknown"
+                self.updateState = .updated(from: previousVersion, to: newVersion)
+            case .failure(let message):
+                self.updateState = .failed(message.isEmpty ? "The update command failed." : message)
+            }
+        }
+    }
+
     // MARK: - Track Selection
     func selectAllTracks() {
         for i in stemTracks.indices where stemTracks[i].isAvailable {

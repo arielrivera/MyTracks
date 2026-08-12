@@ -25,40 +25,87 @@ ArielSplitter is a native macOS desktop application that separates a musical mix
 ### Build tools
 
 - `swift-tools-version: 5.9`
-- Xcode 15+ or the standalone Swift toolchain
+- **Command Line Tools are sufficient** (`xcode-select --install`). Full Xcode is
+  only needed for SwiftUI `#Preview`, which is compiled out under SwiftPM via
+  `#if !SWIFT_PACKAGE` because the backing macro plugin ships with Xcode only.
+
+### Command-line tools
+
+The app shells out to two external binaries:
+
+| Tool | Required? | Used for |
+| --- | --- | --- |
+| `ffmpeg` | **Yes** | Decoding formats libsndfile cannot read (`.m4a`, `.mp4`, AAC) |
+| `yt-dlp` | No | The "Download from URL" panel only |
+
+Both are located by probing `/opt/homebrew/bin`, `/usr/local/bin`,
+`~/.local/bin` and `/opt/local/bin` directly, because a GUI-launched app
+inherits a minimal `PATH` that excludes Homebrew.
 
 ## System requirements
 
 - Apple Silicon Mac (M1 or newer) — currently tested only on M1 Macs
 - macOS 14 Sonoma or later
 - At least 8 GB RAM (16 GB recommended for long tracks)
-- Several GB of free disk space for model cache and output WAV files
+- Several GB of free disk space. Budget roughly **270 MB per 6-stem run**
+  (stems are uncompressed WAV, ~45 MB each) plus ~500 MB of Demucs model cache
+  in `~/.cache/huggingface`.
 
 ## Installation
 
-### 1. Clone or open the project
+### Automatic (recommended)
+
+```bash
+cd MyTracks
+./setup.sh
+```
+
+The script is idempotent and does the following, reporting a clear verdict:
+
+1. Confirms a Swift toolchain is present.
+2. Creates `venv/` at the repository root if missing.
+3. Installs `requirements.txt` into it.
+4. Verifies every module `separate.py` imports actually resolves.
+5. Checks for `ffmpeg` (blocking) and `yt-dlp` (optional).
+6. Runs `swift build`.
+
+Flags: `--install-tools` also installs missing tools via Homebrew;
+`--recreate` rebuilds the virtualenv from scratch.
+
+### Manual
+
+#### 1. Create a virtualenv at the repository root
+
+```bash
+cd MyTracks
+python3 -m venv venv
+./venv/bin/python3 -m pip install -r requirements.txt
+```
+
+The location matters. `PythonLocator` searches for `venv/`, `.venv/` or `env/`
+while walking up from `separate.py`, and probes each candidate for the required
+modules using `importlib.util.find_spec`. The first interpreter with all of them
+wins. A global `pip install` is unreliable here: a GUI app resolves
+`/usr/bin/env python3` against a minimal `PATH`, which typically finds a bare
+system interpreter with no `numpy`.
+
+#### 2. Install the command-line tools
+
+```bash
+brew install ffmpeg    # required
+brew install yt-dlp    # optional
+```
+
+#### 3. Verify
+
+```bash
+./venv/bin/python3 -c "import demucs, torch, torchaudio, numpy, soundfile, librosa; print('OK')"
+```
+
+#### 4. Build the Swift package
 
 ```bash
 cd "Ariel's Splitter"
-```
-
-### 2. Install Python dependencies
-
-The separation engine needs a working Python 3 environment with Demucs and PyTorch:
-
-```bash
-python3 -m pip install demucs torch torchaudio
-```
-
-Verify the install:
-
-```bash
-python3 -c "import demucs; import torch; import torchaudio; print('OK')"
-```
-
-### 3. Build the Swift package
-
-```bash
 swift build
 ```
 
@@ -144,11 +191,22 @@ ArielSplitter/
 │   └── ArielSplitter/
 │       ├── App/              # App entry point and design system
 │       ├── Audio/            # AVAudioEngine playback
+│       ├── Download/         # yt-dlp integration, tool discovery, updates
 │       ├── Models/           # Data models
 │       ├── Resources/        # separate.py (Demucs wrapper)
-│       ├── Separation/       # SeparationEngine
+│       ├── Separation/       # SeparationEngine, PythonLocator
 │       ├── ViewModels/       # AppViewModel
 │       └── Views/            # SwiftUI views
+```
+
+Repository-level files sit one directory above the Swift package:
+
+```text
+MyTracks/
+├── setup.sh             # One-command environment setup
+├── requirements.txt     # Python dependencies
+├── venv/                # Created by setup.sh (git-ignored)
+└── Ariel's Splitter/    # The Swift package shown above
 ```
 
 ## Architecture
@@ -160,9 +218,13 @@ ArielSplitter/
 | `ArielSplitterApp.swift` | App entry point, window config, menu commands |
 | `AppViewModel.swift` | Central state, coordinates UI, engine, and audio manager |
 | `SeparationEngine.swift` | Spawns Python process, parses stdout, reports progress |
+| `PythonLocator.swift` | Finds an interpreter that actually has the required modules |
+| `MediaDownloader.swift` | Drives `yt-dlp`, parses progress, resolves output paths |
+| `MediaToolLocator.swift` | Locates external binaries despite a GUI app's minimal `PATH` |
+| `ToolUpdater.swift` | Updates `yt-dlp` via whichever installer owns it |
 | `AudioEngineManager.swift` | Loads stems into `AVAudioEngine`, playback, mixing |
 | `Views/` | SwiftUI views for each screen section |
-| `Models/` | `AudioFileInfo`, `StemTrack`, `StemCategory`, `SeparationState` |
+| `Models/` | `AudioFileInfo`, `StemTrack`, `StemCategory`, `SeparationState`, `DownloadState` |
 | `DesignSystem.swift` | Shared colors, fonts, and UI constants |
 
 ### Python wrapper
@@ -219,6 +281,68 @@ The first run downloads the model weights. Ensure you have a working internet co
 ### Silent output files
 
 Check that the input file is not DRM-protected and that FFmpeg can decode it.
+
+### `ModuleNotFoundError: No module named 'numpy'`
+
+The app found a Python interpreter, but not the one holding your packages. This
+is almost always a global `pip install` combined with a GUI launch: the app
+resolves against a minimal `PATH` and lands on a bare system interpreter.
+
+Create a virtualenv at the repository root and install into it — see
+[Installation](#installation). Since `PythonLocator` probes candidates for the
+required modules, an interpreter missing them is now rejected outright, and the
+error names exactly which modules are absent along with the `pip install` line
+to fix it.
+
+### `LibsndfileError: Format not recognised`
+
+The input is in a format libsndfile cannot decode — most commonly `.m4a`/AAC or
+`.mp4`. `librosa` 1.0 removed the `audioread` fallback, so libsndfile is its only
+backend (WAV, MP3, FLAC, OGG, AIFF).
+
+`separate.py` handles this by transcoding to a temporary WAV with ffmpeg, so this
+error in practice means **ffmpeg is not installed or was not found**. Install it
+with `brew install ffmpeg` and re-run `./setup.sh` to confirm it is detected.
+
+### Edits to `separate.py` appear to do nothing
+
+`SeparationEngine` prefers the copy in `Bundle.main` over the one in the source
+tree, and SwiftPM only refreshes that copy at build time. **Run `swift build`
+after every change to `separate.py`**, or you will silently keep running the old
+version.
+
+### `Invalid manifest` / undefined `PackageDescription` symbols
+
+`swift build` fails while compiling `Package.swift` itself, with linker errors
+about missing `PackageDescription.Package` initializers. This indicates a broken
+Command Line Tools installation, not a problem with the manifest. Reinstall:
+
+```bash
+sudo rm -rf /Library/Developer/CommandLineTools
+sudo xcode-select --install
+```
+
+### yt-dlp downloads fail after working previously
+
+Sites change their players and break extraction regularly; the fix is a newer
+yt-dlp. The app detects the common signatures and offers an **Update yt-dlp**
+button on the failure itself.
+
+Note that `yt-dlp -U` **cannot** update a Homebrew install — Homebrew ships it as
+a Python wheel, and `-U` refuses with *"you installed yt-dlp with pip..."*. The
+app routes the update to the owning package manager (`brew upgrade yt-dlp`,
+`pip install --upgrade yt-dlp`, or genuine `-U` for a standalone binary). `-U` is
+still used as a read-only version check.
+
+## Distribution notes
+
+Xcode (or the Swift toolchain) is only required to **build** the app from source. A future packaged release — a signed `.app` bundle — would not require end users to install Xcode or the Swift toolchain. To produce such a release you would need to:
+
+1. Build a release binary (`swift build -c release` or archive via Xcode).
+2. Wrap it in a macOS `.app` bundle.
+3. Sign and notarize it with an Apple Developer account so Gatekeeper allows it on other Macs.
+
+Embedding or bundling the Python runtime and Demucs/PyTorch dependencies is the remaining packaging challenge; without that, the packaged app would still need the user to have a compatible Python environment.
 
 ## Development notes
 

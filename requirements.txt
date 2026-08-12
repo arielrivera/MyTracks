@@ -1,0 +1,33 @@
+# Python dependencies for ArielSplitter's separation backend (separate.py).
+#
+# Install into a virtualenv at the repository root — ./setup.sh does this for
+# you. The app looks for venv/, .venv/ or env/ near the project and rejects an
+# interpreter that is missing any of these packages, so a global pip install
+# will not be picked up reliably.
+#
+# Lower bounds are used rather than exact pins so the resolver can pick wheels
+# that match your Python version. Versions verified working on macOS 15 /
+# Apple Silicon / Python 3.14.6:
+#
+#   demucs 4.1.0   torch 2.13.0   torchaudio 2.11.0   numpy 2.5.2
+#   soundfile 0.14.0   librosa 1.0.0   psutil 7.2.2   tqdm 4.70.0
+
+# Separation model and tensor backend
+demucs>=4.0.0
+torch>=2.0.0
+torchaudio>=2.0.0
+numpy>=1.24.0
+
+# Audio decoding and writing.
+# NOTE: librosa 1.0 removed the audioread fallback, so it can only open formats
+# libsndfile understands (WAV, MP3, FLAC, OGG, AIFF — not M4A/AAC). separate.py
+# transcodes anything else with ffmpeg, which is why ffmpeg is a hard
+# requirement rather than an optional extra.
+soundfile>=0.12.0
+librosa>=0.10.0
+
+# Progress reporting, and the CPU/memory readout in the UI.
+# psutil is optional at runtime — separate.py guards the import — but without it
+# the resource meter stays blank.
+tqdm>=4.65.0
+psutil>=5.9.0

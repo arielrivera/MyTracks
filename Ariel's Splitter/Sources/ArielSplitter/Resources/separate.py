@@ -41,6 +41,64 @@ def sha256_file(path):
             h.update(chunk)
     return h.hexdigest()
 
+def find_ffmpeg():
+    """Locate ffmpeg.
+
+    A GUI-launched app inherits a minimal PATH that excludes /opt/homebrew/bin,
+    so shutil.which alone misses a Homebrew install. Probe the real locations.
+    """
+    from shutil import which
+    found = which("ffmpeg")
+    if found:
+        return found
+    for candidate in ("/opt/homebrew/bin/ffmpeg", "/usr/local/bin/ffmpeg", "/opt/local/bin/ffmpeg"):
+        if os.path.isfile(candidate) and os.access(candidate, os.X_OK):
+            return candidate
+    return None
+
+
+def load_audio(input_file):
+    """Return (samples, sample_rate) for any format ffmpeg can decode.
+
+    librosa 1.0 dropped the audioread fallback, leaving libsndfile as its only
+    backend - and libsndfile cannot read AAC/M4A or MP4. Since the app accepts
+    anything AVFoundation opens, and YouTube audio arrives as .m4a, anything
+    libsndfile rejects is transcoded to a temporary WAV with ffmpeg first.
+    """
+    import librosa
+
+    try:
+        return librosa.load(input_file, sr=None, mono=False)
+    except Exception as exc:
+        print(f"WARNING:libsndfile could not open the file ({exc}); trying ffmpeg", flush=True)
+
+    ffmpeg = find_ffmpeg()
+    if ffmpeg is None:
+        raise RuntimeError(
+            f"Cannot decode {os.path.basename(input_file)}: this format needs ffmpeg, "
+            "which was not found. Install it with: brew install ffmpeg"
+        )
+
+    import shutil
+    import subprocess
+    import tempfile
+
+    tmp_dir = tempfile.mkdtemp(prefix="arielsplitter-decode-")
+    tmp_wav = os.path.join(tmp_dir, "decoded.wav")
+    try:
+        print("STATUS:Converting audio...", flush=True)
+        result = subprocess.run(
+            [ffmpeg, "-nostdin", "-loglevel", "error", "-y", "-i", input_file,
+             "-vn", "-acodec", "pcm_s16le", tmp_wav],
+            capture_output=True, text=True,
+        )
+        if result.returncode != 0 or not os.path.exists(tmp_wav):
+            raise RuntimeError(f"ffmpeg could not decode the file: {result.stderr.strip()}")
+        return librosa.load(tmp_wav, sr=None, mono=False)
+    finally:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+
+
 def separate(input_file, output_dir, stems_to_extract, model_name="htdemucs"):
     """
     Separate audio using Demucs.
@@ -87,7 +145,7 @@ def separate(input_file, output_dir, stems_to_extract, model_name="htdemucs"):
     # Load audio
     print(f"STATUS:Loading audio file...", flush=True)
     print(f"PROGRESS:0.05", flush=True)
-    wav, sr = librosa.load(input_file, sr=None, mono=False)
+    wav, sr = load_audio(input_file)
     
     # librosa with mono=False returns shape (channels, samples) for stereo
     # or (samples,) for mono

@@ -1,0 +1,19 @@
+.DS_Store
+/.build
+/Packages
+xcuserdata/
+DerivedData/
+.swiftpm/configuration/registries.json
+.swiftpm/xcode/package.xcworkspace/contents.xcworkspacedata
+.netrc
+
+# Python virtualenvs created by setup.sh. The venv module writes its own
+# self-ignoring .gitignore, but virtualenv does not — so be explicit.
+venv/
+.venv/
+env/
+__pycache__/
+*.pyc
+
+# Local scratch: downloaded media and tool logs
+samples/

@@ -39,9 +39,16 @@ final class SeparationEngine: @unchecked Sendable {
             engineLog("Found script in bundle: \(resourceURL.path)")
             scriptURL = resourceURL
         } else {
-            let devPath = "/Users/arielrivera/Documents/GitHub/MyTracks/Ariel's Splitter/Sources/ArielSplitter/Resources/separate.py"
-            engineLog("Using dev script path: \(devPath)")
-            scriptURL = URL(fileURLWithPath: devPath)
+            // Derive the location from this source file rather than hard-coding
+            // one developer's checkout: #filePath points at
+            // Sources/ArielSplitter/Separation/SeparationEngine.swift, so two
+            // levels up is the module root that holds Resources/.
+            let devURL = URL(fileURLWithPath: #filePath)
+                .deletingLastPathComponent()    // Separation/
+                .deletingLastPathComponent()    // ArielSplitter/
+                .appendingPathComponent("Resources/separate.py")
+            engineLog("Using dev script path: \(devURL.path)")
+            scriptURL = devURL
         }
         
         guard FileManager.default.fileExists(atPath: scriptURL.path) else {
@@ -56,11 +63,30 @@ final class SeparationEngine: @unchecked Sendable {
         let needs6Stems = categories.contains(where: { $0 == .guitar || $0 == .piano || $0 == .otherInstruments })
         let modelName = needs6Stems ? "htdemucs_6s" : "htdemucs"
         
-        engineLog("Launching python3 \(scriptURL.path) separate \(fileURL.path) \(outputDirectory.path) \(stemsString) \(modelName)")
-        
+        // Resolve a real interpreter rather than trusting `/usr/bin/env python3`,
+        // which in a GUI app resolves to a bare system Python with no numpy.
+        guard let interpreter = PythonLocator.locate(scriptURL: scriptURL) else {
+            throw SeparationError.pythonError(
+                "No Python 3 interpreter could be found. Install one, or point the app at your virtualenv."
+            )
+        }
+
+        guard interpreter.isComplete else {
+            let missing = interpreter.missingModules.joined(separator: ", ")
+            engineLog("Interpreter \(interpreter.url.path) is missing: \(missing)")
+            throw SeparationError.pythonError("""
+                Python at \(interpreter.url.path) is missing: \(missing).
+
+                Install them into that environment, for example:
+                  \(interpreter.url.path) -m pip install \(interpreter.missingModules.joined(separator: " "))
+                """)
+        }
+
+        engineLog("Launching \(interpreter.url.path) \(scriptURL.path) separate \(fileURL.path) \(outputDirectory.path) \(stemsString) \(modelName)")
+
         let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        process.arguments = ["python3", scriptURL.path, "separate", fileURL.path, outputDirectory.path, stemsString, modelName]
+        process.executableURL = interpreter.url
+        process.arguments = [scriptURL.path, "separate", fileURL.path, outputDirectory.path, stemsString, modelName]
         
         let outputPipe = Pipe()
         let errorPipe = Pipe()

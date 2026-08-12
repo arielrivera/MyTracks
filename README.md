@@ -5,6 +5,7 @@ A native macOS application for AI-powered musical source separation. Split a son
 ## Features
 
 - Drag-and-drop or open any audio/video file supported by `AVFoundation`.
+- Download audio or video straight from a URL with `yt-dlp`, then separate it in one flow.
 - Choose which stems to extract.
 - Select an output folder.
 - Real-time progress with status messages.
@@ -16,23 +17,38 @@ A native macOS application for AI-powered musical source separation. Split a son
 
 - Apple Silicon Mac (M1 or newer) — currently tested only on M1 Macs
 - macOS 14 (Sonoma) or later
-- Xcode 15+ or Swift 5.9 toolchain
-- Python 3.10+ with `demucs`, `torch`, and `torchaudio` installed
+- **Command Line Tools** (`xcode-select --install`) — full Xcode is *not* required
+- Python 3.10+
+- **ffmpeg** — required, not optional (see below)
+- **yt-dlp** — optional, only for the "Download from URL" panel
 - An internet connection the first time Demucs downloads a model (after that, processing is fully local)
 
-## Install Python dependencies
+> **Why ffmpeg is required:** `librosa` 1.0 dropped its `audioread` fallback, so it
+> can only open formats libsndfile understands — WAV, MP3, FLAC, OGG, AIFF. Anything
+> else, including the `.m4a`/`.mp4` files that URL downloads produce, is transcoded
+> with ffmpeg first. Without it those files fail to load.
+
+## Quick start
 
 ```bash
-python3 -m pip install demucs torch torchaudio
+git clone <this repo>
+cd MyTracks
+./setup.sh
 ```
 
-## Build and run
+`setup.sh` creates a virtualenv at the repository root, installs everything in
+`requirements.txt`, checks for ffmpeg and yt-dlp, builds the Swift package, and
+tells you exactly what is missing if anything is. It is safe to re-run.
 
-Open `Ariel's Splitter` in Xcode or run from the terminal:
+```bash
+./setup.sh --install-tools   # also install missing ffmpeg/yt-dlp via Homebrew
+./setup.sh --recreate        # rebuild the virtualenv from scratch
+```
+
+Then run the app:
 
 ```bash
 cd "Ariel's Splitter"
-swift build
 swift run ArielSplitter
 ```
 
@@ -41,6 +57,22 @@ Or run the built executable directly:
 ```bash
 .build/debug/ArielSplitter
 ```
+
+### Manual setup
+
+If you would rather not use the script:
+
+```bash
+python3 -m venv venv
+./venv/bin/python3 -m pip install -r requirements.txt
+brew install ffmpeg yt-dlp
+cd "Ariel's Splitter" && swift build
+```
+
+> **Use a virtualenv at the repository root.** The app searches for `venv/`,
+> `.venv/` or `env/` near the project and rejects any interpreter missing a
+> required module. A global `pip install` is not reliably picked up, because a
+> GUI-launched app does not inherit your shell's `PATH`.
 
 ## Quick test
 
@@ -57,20 +89,25 @@ Then launch the app and choose **Debug → Run Auto Test** (or press `Cmd + Opti
 ## Project structure
 
 ```text
-Ariel's Splitter/
-├── Package.swift
+MyTracks/
+├── setup.sh                    # One-command environment setup
+├── requirements.txt            # Python dependencies
 ├── README.md
 ├── README_Detailed.md
-├── prompts/                # Original AI prompts (optional)
-├── Sources/
-│   └── ArielSplitter/
-│       ├── App/              # App entry point and design system
-│       ├── Audio/            # AVAudioEngine playback
-│       ├── Models/           # Data models
-│       ├── Resources/        # separate.py (Demucs wrapper)
-│       ├── Separation/       # SeparationEngine
-│       ├── ViewModels/       # AppViewModel
-│       └── Views/            # SwiftUI views
+├── prompts/                    # Original AI prompts (optional)
+├── venv/                       # Created by setup.sh (git-ignored)
+└── Ariel's Splitter/
+    ├── Package.swift
+    └── Sources/
+        └── ArielSplitter/
+            ├── App/            # App entry point and design system
+            ├── Audio/          # AVAudioEngine playback
+            ├── Download/       # yt-dlp integration and tool discovery
+            ├── Models/         # Data models
+            ├── Resources/      # separate.py (Demucs wrapper)
+            ├── Separation/     # SeparationEngine, PythonLocator
+            ├── ViewModels/     # AppViewModel
+            └── Views/          # SwiftUI views
 ```
 
 ## AI prompts
