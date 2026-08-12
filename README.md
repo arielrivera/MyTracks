@@ -15,6 +15,31 @@ A native macOS application for AI-powered musical source separation. Split a son
 - Consolidated settings (`⌘,`), including yt-dlp updates and environment diagnostics.
 - Native SwiftUI interface, no Electron or web wrapper.
 
+## Interface
+
+**Getting audio in** — one drop zone handles a dropped file, a dropped link, a
+pasted URL, or a click to browse. A link on the clipboard is offered as a
+suggestion you can accept or dismiss.
+
+![Drop zone with a clipboard suggestion](docs/screenshots/drop-zone.png)
+
+**Mixer** — after separation the window becomes the mixer: solo, mute, and set
+levels per stem, then export.
+
+![Mixer with seven separated stems](docs/screenshots/mixer.png)
+
+**Export** — one dialog covers the whole job: the current mix or individual
+stems, the output format, and where it goes.
+
+![Export dialog set to the current mix](docs/screenshots/export-mix.png)
+
+![Export dialog with individual stems selected](docs/screenshots/export-stems.png)
+
+**Settings** — locations, audio format, yt-dlp status and updates, and read-only
+environment diagnostics.
+
+![Settings showing the downloader and environment sections](docs/screenshots/settings.png)
+
 ## Requirements
 
 - Apple Silicon Mac (M1 or newer) — currently tested only on M1 Macs
