@@ -41,6 +41,21 @@ def sha256_file(path):
             h.update(chunk)
     return h.hexdigest()
 
+def output_prefix_for(input_file):
+    """A filesystem-safe stem derived from the input filename.
+
+    Stems used to be written as vocals.wav, drums.wav and so on, so every run
+    overwrote the previous one in the same output folder. Prefixing with the
+    source name keeps separate songs apart.
+    """
+    import re
+    base = os.path.splitext(os.path.basename(input_file))[0]
+    # Keep letters (including accented ones), digits, and a few safe separators.
+    safe = re.sub(r'[^\w\-. ]', '_', base, flags=re.UNICODE)
+    safe = re.sub(r'[_\s]+', '_', safe).strip('_. ')
+    return safe[:60] or "audio"
+
+
 def find_ffmpeg():
     """Locate ffmpeg.
 
@@ -232,7 +247,9 @@ def separate(input_file, output_dir, stems_to_extract, model_name="htdemucs"):
     # Create output directory
     os.makedirs(output_dir, exist_ok=True)
     print(f"PROGRESS:0.90", flush=True)
-    
+
+    output_prefix = output_prefix_for(input_file)
+
     total_sources = len(stems_to_extract)
     for idx, stem_name in enumerate(stems_to_extract):
         stem_lower = stem_name.lower()
@@ -264,7 +281,7 @@ def separate(input_file, output_dir, stems_to_extract, model_name="htdemucs"):
         # Transpose from (channels, samples) to (samples, channels) for soundfile
         source_audio = source_audio.T
         
-        output_path = os.path.join(output_dir, f"{stem_name}.wav")
+        output_path = os.path.join(output_dir, f"{output_prefix}_{stem_name}.wav")
         try:
             sf.write(output_path, source_audio, sr)
         except Exception as e:

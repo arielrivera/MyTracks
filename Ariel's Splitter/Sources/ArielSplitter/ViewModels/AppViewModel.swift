@@ -37,6 +37,13 @@ class AppViewModel: ObservableObject {
     @Published var ytDlpPath: URL?
     @Published var ytDlpVersion: String?
 
+    // MARK: - Export
+    @Published var isShowingExport = false
+    @Published var exportMode: ExportMode = .mixed
+    @Published var exportState: ExportState = .configuring
+    @Published var exportSelection: Set<UUID> = []
+    @Published var exportDestination: URL
+
     // MARK: - Settings
     @Published var isShowingSettings = false
     @Published var ffmpegPath: URL?
@@ -104,6 +111,9 @@ class AppViewModel: ObservableObject {
     init() {
         // Match the manual yt-dlp workflow, which saves into ~/Downloads.
         downloadDirectory = Self.downloadsDirectory
+        // Exporting means "put a copy somewhere I choose", so it defaults to
+        // Downloads rather than the folder the stems already live in.
+        exportDestination = Self.downloadsDirectory
         setupDefaultOutputDirectory()
         setupDefaultTracks()
         refreshToolStatus()
@@ -484,7 +494,7 @@ class AppViewModel: ObservableObject {
                 self.separationEngine = engine
                 
                 appLog("Calling engine.separate")
-                try await engine.separate(
+                let producedFiles = try await engine.separate(
                     fileURL: fileInfo.url,
                     categories: selectedCategories,
                     outputDirectory: outputDir,
@@ -496,11 +506,16 @@ class AppViewModel: ObservableObject {
                 )
                 appLog("engine.separate returned")
                 
+                // Match on the Demucs source name against the paths the script
+                // reported, rather than rebuilding a filename from the display
+                // name. The two had drifted: "Piano & Keys".rawValue never
+                // matched piano.wav, so that stem was silently missing from the
+                // mixer, and the others only matched because macOS filesystems
+                // are case-insensitive by default.
                 for i in self.stemTracks.indices {
-                    let category = self.stemTracks[i].category
-                    let fileName = "\(category.rawValue).wav"
-                    let fileURL = outputDir.appendingPathComponent(fileName)
-                    if FileManager.default.fileExists(atPath: fileURL.path) {
+                    let sourceName = self.stemTracks[i].category.demucsSourceName
+                    if let fileURL = producedFiles[sourceName],
+                       FileManager.default.fileExists(atPath: fileURL.path) {
                         self.stemTracks[i].fileURL = fileURL
                     }
                 }
@@ -601,43 +616,134 @@ class AppViewModel: ObservableObject {
     }
     
     // MARK: - Export
-    func exportStem(_ track: StemTrack) {
-        guard let fileURL = track.fileURL else { return }
-        
-        let panel = NSSavePanel()
-        panel.nameFieldStringValue = fileURL.lastPathComponent
-        panel.allowedContentTypes = [.wav]
-        
-        guard panel.runModal() == .OK, let destinationURL = panel.url else { return }
-        
-        do {
-            if FileManager.default.fileExists(atPath: destinationURL.path) {
-                try FileManager.default.removeItem(at: destinationURL)
-            }
-            try FileManager.default.copyItem(at: fileURL, to: destinationURL)
-        } catch {
-            separationState = .failed("Could not export: \(error.localizedDescription)")
+
+    /// Stems that were actually produced, and so can be exported.
+    var exportableTracks: [StemTrack] {
+        stemTracks.filter { $0.fileURL != nil }
+    }
+
+    var canRunExport: Bool {
+        switch exportMode {
+        case .mixed: return !exportableTracks.isEmpty
+        case .individual: return !exportSelection.isEmpty
         }
     }
-    
-    func exportMixedTrack() {
-        guard outputDirectory != nil else { return }
-        
-        let panel = NSSavePanel()
-        panel.nameFieldStringValue = "Mixed Track.wav"
-        panel.allowedContentTypes = [.wav]
-        
-        guard panel.runModal() == .OK, let destinationURL = panel.url else { return }
-        
+
+    /// Base name for exported files, taken from the source audio so a mix is
+    /// identifiable rather than another generic "Mixed Track.wav".
+    private var exportBaseName: String {
+        guard let info = audioFileInfo else { return "mix" }
+        return info.url.deletingPathExtension().lastPathComponent
+    }
+
+    func presentExport() {
+        exportState = .configuring
+        exportSelection = Set(exportableTracks.map(\.id))
+        isShowingExport = true
+    }
+
+    func closeExport() {
+        isShowingExport = false
+        exportState = .configuring
+    }
+
+    func toggleExportSelection(_ track: StemTrack) {
+        if exportSelection.contains(track.id) {
+            exportSelection.remove(track.id)
+        } else {
+            exportSelection.insert(track.id)
+        }
+    }
+
+    func selectExportDestination() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.canCreateDirectories = true
+        panel.message = "Choose where to export"
+
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        exportDestination = url
+    }
+
+    func runExport() {
+        guard canRunExport, !exportState.isExporting else { return }
+
+        let destination = exportDestination
+        let mode = exportMode
+        exportState = .exporting(progress: 0, detail: "Preparing...")
+
         Task { @MainActor in
             do {
-                try await self.audioEngine?.exportMix(to: destinationURL, tracks: self.stemTracks)
+                try FileManager.default.createDirectory(at: destination, withIntermediateDirectories: true)
+
+                var written = 0
+                switch mode {
+                case .mixed:
+                    guard let engine = self.audioEngine else { throw ExportError.noMixerLoaded }
+                    self.exportState = .exporting(progress: 0.2, detail: "Mixing down...")
+                    let target = Self.availableURL(in: destination, baseName: "\(self.exportBaseName)_mix", ext: "wav")
+                    try await engine.exportMix(to: target, tracks: self.stemTracks)
+                    written = 1
+
+                case .individual:
+                    let tracks = self.exportableTracks.filter { self.exportSelection.contains($0.id) }
+                    guard !tracks.isEmpty else { throw ExportError.nothingSelected }
+
+                    for (index, track) in tracks.enumerated() {
+                        guard let source = track.fileURL else { continue }
+                        self.exportState = .exporting(
+                            progress: Double(index) / Double(tracks.count),
+                            detail: "Copying \(track.displayName)..."
+                        )
+
+                        let target = Self.availableURL(
+                            in: destination,
+                            baseName: source.deletingPathExtension().lastPathComponent,
+                            ext: source.pathExtension
+                        )
+                        // Exporting into the folder the stems already live in
+                        // would be a copy onto itself; count it and move on.
+                        if source.standardizedFileURL != target.standardizedFileURL {
+                            try FileManager.default.copyItem(at: source, to: target)
+                        }
+                        written += 1
+                    }
+                }
+
+                appLog("Exported \(written) file(s) to \(destination.path)")
+                self.exportState = .done(count: written, destination: destination)
+
             } catch {
-                self.separationState = .failed("Could not export mix: \(error.localizedDescription)")
+                appLog("Export failed: \(error.localizedDescription)")
+                self.exportState = .failed(error.localizedDescription)
             }
         }
     }
-    
+
+    /// A path that does not already exist, so an export never destroys a file
+    /// the user exported earlier.
+    private static func availableURL(in directory: URL, baseName: String, ext: String) -> URL {
+        let candidate = directory.appendingPathComponent(baseName).appendingPathExtension(ext)
+        guard FileManager.default.fileExists(atPath: candidate.path) else { return candidate }
+
+        for suffix in 2...999 {
+            let next = directory
+                .appendingPathComponent("\(baseName) \(suffix)")
+                .appendingPathExtension(ext)
+            if !FileManager.default.fileExists(atPath: next.path) { return next }
+        }
+        return candidate
+    }
+
+    func openExportDestination() {
+        if case .done(_, let destination) = exportState {
+            NSWorkspace.shared.open(destination)
+        } else {
+            NSWorkspace.shared.open(exportDestination)
+        }
+    }
+
     func openResultsFolder() {
         guard let outputDir = outputDirectory else { return }
         NSWorkspace.shared.open(outputDir)

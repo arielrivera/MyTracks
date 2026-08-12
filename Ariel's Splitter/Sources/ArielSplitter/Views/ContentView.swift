@@ -59,9 +59,8 @@ struct ContentView: View {
                     }
                 } else if appViewModel.workflowPhase == .finished {
                     // Nothing left to configure — the run is done, so the window
-                    // becomes the mixer.
+                    // becomes the mixer. Export lives inside it as a dialog.
                     MixerView()
-                    ExportView()
                 } else {
                     FileInfoView()
 
@@ -96,6 +95,10 @@ struct ContentView: View {
         .background(colorScheme == .dark ? Color.appBackground : Color.appBackgroundLight)
         .sheet(isPresented: $appViewModel.isShowingSettings) {
             SettingsView()
+                .environmentObject(appViewModel)
+        }
+        .sheet(isPresented: $appViewModel.isShowingExport) {
+            ExportDialogView()
                 .environmentObject(appViewModel)
         }
         .onAppear {

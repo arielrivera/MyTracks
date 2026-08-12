@@ -43,7 +43,7 @@ final class SeparationEngine: @unchecked Sendable {
         categories: [StemCategory],
         outputDirectory: URL,
         progressHandler: @escaping @Sendable (Double, String, ResourceUsage?) -> Void
-    ) async throws {
+    ) async throws -> [String: URL] {
         engineLog("SeparationEngine.separate() called")
         
         lock.lock()
@@ -109,6 +109,8 @@ final class SeparationEngine: @unchecked Sendable {
             var buffer = Data()
             var lastProgress: Double = 0
             var lastResources: ResourceUsage?
+            /// Demucs source name -> file the script wrote for it.
+            var producedFiles: [String: URL] = [:]
         }
         let state = ParserState()
         
@@ -147,9 +149,15 @@ final class SeparationEngine: @unchecked Sendable {
                             }
                         }
                     } else if trimmed.hasPrefix("FILE:") {
+                        // FILE:<stem>:<path>:<sha256>
                         let parts = trimmed.dropFirst(5).split(separator: ":", maxSplits: 2)
                         if parts.count >= 2 {
                             let stemName = String(parts[0])
+                            // Record the path the script actually wrote rather
+                            // than rebuilding the name here. The two naming
+                            // schemes had drifted apart, so "Piano & Keys.wav"
+                            // was looked up while piano.wav was on disk.
+                            state.producedFiles[stemName] = URL(fileURLWithPath: String(parts[1]))
                             let progress = state.lastProgress
                             let resources = state.lastResources
                             Task { @MainActor in
@@ -193,15 +201,40 @@ final class SeparationEngine: @unchecked Sendable {
             process.terminationHandler = { proc in
                 engineLog("Process terminated with status: \(proc.terminationStatus)")
                 outputHandle.readabilityHandler = nil
-                
+
+                // The last lines can still be sitting in the pipe when the
+                // process exits, so drain before reading what was produced —
+                // otherwise the final stem's path is silently lost.
+                let remaining = outputHandle.readDataToEndOfFile()
                 let errData = errorPipe.fileHandleForReading.readDataToEndOfFile()
-                
+
+                // parseQueue is serial, so this also waits for any parsing
+                // already in flight.
+                let produced: [String: URL] = parseQueue.sync {
+                    if !remaining.isEmpty {
+                        state.buffer.append(remaining)
+                    }
+                    while let newlineRange = state.buffer.range(of: Data([10])) {
+                        let lineData = state.buffer.subdata(in: 0..<newlineRange.lowerBound)
+                        state.buffer.removeSubrange(0..<newlineRange.upperBound)
+                        guard let line = String(data: lineData, encoding: .utf8) else { continue }
+                        let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+                        guard trimmed.hasPrefix("FILE:") else { continue }
+                        let parts = trimmed.dropFirst(5).split(separator: ":", maxSplits: 2)
+                        if parts.count >= 2 {
+                            state.producedFiles[String(parts[0])] = URL(fileURLWithPath: String(parts[1]))
+                        }
+                    }
+                    return state.producedFiles
+                }
+
                 if proc.terminationStatus != 0 {
                     let errStr = String(data: errData, encoding: .utf8) ?? "Unknown error"
                     engineLog("Process error: \(errStr)")
                     continuation.resume(throwing: SeparationError.pythonError("Process exited with code \(proc.terminationStatus): \(errStr)"))
                 } else {
-                    continuation.resume(returning: ())
+                    engineLog("Produced \(produced.count) stem files")
+                    continuation.resume(returning: produced)
                 }
             }
         }

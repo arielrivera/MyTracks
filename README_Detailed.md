@@ -36,7 +36,7 @@ The app shells out to two external binaries:
 | Tool | Required? | Used for |
 | --- | --- | --- |
 | `ffmpeg` | **Yes** | Decoding formats libsndfile cannot read (`.m4a`, `.mp4`, AAC) |
-| `yt-dlp` | No | The "Download from URL" panel only |
+| `yt-dlp` | No | Downloading media from a URL only |
 
 Both are located by probing `/opt/homebrew/bin`, `/usr/local/bin`,
 `~/.local/bin` and `/opt/local/bin` directly, because a GUI-launched app
@@ -135,20 +135,47 @@ Open the `Ariel's Splitter` folder in Xcode and press `Cmd + R`.
 
 ## How to use the app
 
-1. **Open a file**  
-   Drag an audio/video file onto the window, or choose **File → Open Audio File…** (`Cmd + O`).
+The window shows only what applies to the current stage, so sections appear and
+disappear as you move through it.
+
+1. **Get audio in**  
+   The drop zone is the single entry point. Drop an audio/video file, drop a
+   link, paste a URL, or click to browse. **File → Open Audio File…** (`Cmd + O`)
+   does the same thing.
+
+   With a URL, download options appear beneath it — audio, video, or both — and
+   the audio loads for separation automatically when the download finishes.
+   Hovering the zone with a link on the clipboard offers it as a suggestion you
+   can accept or dismiss; nothing is pasted without your click.
 
 2. **Select stems**  
-   Toggle the stems you want to extract (vocals, drums, bass, guitar, piano, other).
+   Toggle the stems you want (vocals, drums, bass, guitar, piano, other).
 
-3. **Choose output folder**  
-   Pick or create a directory where the WAV stems will be saved.
+3. **Start separation**  
+   The app launches the Python backend and streams progress back to the UI. The
+   stem selector disappears for the duration, since the choice is fixed once the
+   run has launched.
 
-4. **Start separation**  
-   Click the separate button. The app launches the Python backend and streams progress back to the UI.
+   The output folder is configured once in **Settings** (`Cmd + ,`) rather than
+   chosen per run. A warning appears here if it is unset, since that blocks
+   starting.
 
-5. **Preview and export**  
-   After separation, use the mixer to solo/mute/preview stems, then export the final files.
+4. **Preview and export**  
+   On success the window becomes the mixer: solo, mute, and set levels. **Export...**
+   at the bottom opens a dialog for the current mix or individual stems, and
+   offers to open the destination folder when it finishes.
+
+Use **New Session** in the header to start over.
+
+## Settings
+
+Opened from the gear beside the title or `Cmd + ,`:
+
+- **Locations** — output folder for stems, download folder for URL fetches.
+- **Downloader** — yt-dlp version, resolved path, and update controls.
+- **Environment** — read-only. Resolved `ffmpeg` and Python paths, and any
+  missing separation modules. Worth checking first when a run fails for
+  environmental reasons, since it reports the same detection the engine uses.
 
 ## Command-line usage
 
@@ -172,10 +199,13 @@ Arguments:
 
 The script prints machine-readable lines to stdout:
 
-- `DEVICE: ...`
-- `STATUS: ...`
-- `PROGRESS: 0.42`
-- `FILE: /path/to/vocals.wav`
+- `DEVICE:mps`
+- `STATUS:Loading model htdemucs_6s...`
+- `PROGRESS:0.42`
+- `RESOURCE:CPU:12.3:MEM:4.56`
+- `FILE:<stem>:<path>:<sha256>` — one per written stem; the app records these
+  paths rather than reconstructing filenames
+- `WARNING: ...`
 - `ERROR: ...`
 - `DONE`
 
@@ -219,6 +249,9 @@ MyTracks/
 | `AppViewModel.swift` | Central state, coordinates UI, engine, and audio manager |
 | `SeparationEngine.swift` | Spawns Python process, parses stdout, reports progress |
 | `PythonLocator.swift` | Finds an interpreter that actually has the required modules |
+| `SettingsView.swift` | Consolidated configuration and environment diagnostics |
+| `ExportDialogView.swift` | Export flow: mix or stems, destination, result |
+| `URLValidator.swift` | Basic link sanity checking for the drop zone |
 | `MediaDownloader.swift` | Drives `yt-dlp`, parses progress, resolves output paths |
 | `MediaToolLocator.swift` | Locates external binaries despite a GUI app's minimal `PATH` |
 | `ToolUpdater.swift` | Updates `yt-dlp` via whichever installer owns it |
@@ -256,17 +289,41 @@ Replace `samplesong.x` with any supported audio or video file. This is intended 
 
 ## Output files
 
-Each separation run produces one 44.1 kHz stereo WAV file per selected stem in the chosen output folder:
+Each separation run produces one 44.1 kHz stereo WAV file per selected stem in the
+chosen output folder. Filenames are prefixed with a filesystem-safe form of the
+source filename, so separating several songs into one folder does not overwrite
+earlier runs:
 
 ```text
 output_folder/
-├── vocals.wav
-├── drums.wav
-├── bass.wav
-├── guitar.wav
-├── piano.wav
-└── other.wav
+├── Función_de_Martes_nC7zDqoWR20_vocals.wav
+├── Función_de_Martes_nC7zDqoWR20_drums.wav
+├── Función_de_Martes_nC7zDqoWR20_bass.wav
+├── Función_de_Martes_nC7zDqoWR20_guitar.wav
+├── Función_de_Martes_nC7zDqoWR20_piano.wav
+└── Función_de_Martes_nC7zDqoWR20_other.wav
 ```
+
+The prefix keeps letters (including accented ones) and digits, replaces anything
+else with underscores, and is capped at 60 characters.
+
+`separate.py` reports each file it writes on stdout as
+`FILE:<stem>:<path>:<sha256>`, and the app records those paths rather than
+rebuilding filenames from display names — so the naming scheme can change without
+the two sides drifting apart.
+
+### Exporting
+
+Separation output is not the same as an export. The stems above stay in the
+output folder; **Export...** in the mixer copies what you choose somewhere else,
+defaulting to `~/Downloads`:
+
+- **Current mix** — one file combining the stems at their current mixer volumes,
+  with muted stems left out, written as `<source name>_mix.wav`.
+- **Individual stems** — a copy of each selected stem at full volume.
+
+Exports never overwrite: if the target name already exists, a numbered copy is
+written instead.
 
 ## Troubleshooting
 

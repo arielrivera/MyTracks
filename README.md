@@ -4,13 +4,14 @@ A native macOS application for AI-powered musical source separation. Split a son
 
 ## Features
 
-- Drag-and-drop or open any audio/video file supported by `AVFoundation`.
-- Download audio or video straight from a URL with `yt-dlp`, then separate it in one flow.
+- One drop zone for everything: drop a file, drop a link, paste a URL, or click to browse.
+- Download audio, video, or both from a URL with `yt-dlp` — the audio loads for separation automatically.
 - Choose which stems to extract.
-- Select an output folder.
-- Real-time progress with status messages.
-- Built-in mixer to preview stems after separation.
-- Export individual WAV files.
+- Real-time progress with status messages; the window shows only what applies to the current stage.
+- Built-in mixer to solo, mute, and set levels after separation.
+- Export the current mix or individual stems, without overwriting earlier exports.
+- Output files are named after the source track, so separate runs don't overwrite each other.
+- Consolidated settings (`⌘,`), including yt-dlp updates and environment diagnostics.
 - Native SwiftUI interface, no Electron or web wrapper.
 
 ## Requirements
@@ -20,7 +21,7 @@ A native macOS application for AI-powered musical source separation. Split a son
 - **Command Line Tools** (`xcode-select --install`) — full Xcode is *not* required
 - Python 3.10+
 - **ffmpeg** — required, not optional (see below)
-- **yt-dlp** — optional, only for the "Download from URL" panel
+- **yt-dlp** — optional, only for downloading media from a URL
 - An internet connection the first time Demucs downloads a model (after that, processing is fully local)
 
 > **Why ffmpeg is required:** `librosa` 1.0 dropped its `audioread` fallback, so it
@@ -103,11 +104,11 @@ MyTracks/
             ├── App/            # App entry point and design system
             ├── Audio/          # AVAudioEngine playback
             ├── Download/       # yt-dlp integration and tool discovery
-            ├── Models/         # Data models
+            ├── Models/         # Data models, URL validation
             ├── Resources/      # separate.py (Demucs wrapper)
             ├── Separation/     # SeparationEngine, PythonLocator
             ├── ViewModels/     # AppViewModel
-            └── Views/          # SwiftUI views
+            └── Views/          # SwiftUI views, Settings and Export dialogs
 ```
 
 ## AI prompts

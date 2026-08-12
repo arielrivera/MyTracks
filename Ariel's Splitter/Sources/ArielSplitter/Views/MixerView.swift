@@ -62,6 +62,22 @@ struct MixerView: View {
             ForEach(appViewModel.stemTracks.filter { $0.fileURL != nil }) { track in
                 MixerRow(track: track)
             }
+
+            Divider()
+                .background(colorScheme == .dark ? Color.appDivider : Color.appDividerLight)
+                .padding(.vertical, 2)
+
+            // Export is a single action here rather than its own section: the
+            // dialog asks what to write once the user has the mix they want.
+            HStack {
+                Spacer()
+                Button(action: { appViewModel.presentExport() }) {
+                    Label("Export...", systemImage: "square.and.arrow.up")
+                }
+                .buttonStyle(.glass())
+                .disabled(appViewModel.exportableTracks.isEmpty)
+                .opacity(appViewModel.exportableTracks.isEmpty ? 0.5 : 1)
+            }
         }
         .padding(AppStyle.smallPadding)
         .surfaceCard()
