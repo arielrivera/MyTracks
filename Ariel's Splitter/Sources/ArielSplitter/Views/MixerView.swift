@@ -21,6 +21,7 @@ struct MixerView: View {
                         .foregroundColor(.appAccent)
                 }
                 .buttonStyle(.plain)
+                .hoverHighlight(cornerRadius: 18, padding: 2)
                 .keyboardShortcut(.space, modifiers: [])
                 
                 // Time display
@@ -104,6 +105,7 @@ struct MixerRow: View {
                     )
             }
             .buttonStyle(.plain)
+            .hoverHighlight(cornerRadius: 5, padding: 2)
             
             // Solo button
             Button(action: { appViewModel.toggleSolo(for: track) }) {
@@ -117,6 +119,7 @@ struct MixerRow: View {
                     )
             }
             .buttonStyle(.plain)
+            .hoverHighlight(cornerRadius: 5, padding: 2)
             
             // Volume slider
             Slider(value: Binding(

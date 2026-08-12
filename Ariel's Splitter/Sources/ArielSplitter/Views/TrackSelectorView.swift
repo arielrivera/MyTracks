@@ -47,6 +47,7 @@ struct TrackCell: View {
                     .foregroundColor(track.isSelected ? Color.appAccent : (colorScheme == .dark ? Color.appTextTertiary : Color.appBorderLight))
             }
             .buttonStyle(.plain)
+            .hoverHighlight(cornerRadius: 11, padding: 2)
             .disabled(!track.isAvailable)
             
             // Icon

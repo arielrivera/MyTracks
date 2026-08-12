@@ -4,6 +4,7 @@ struct URLDownloadView: View {
     @EnvironmentObject var appViewModel: AppViewModel
     @Environment(\.colorScheme) var colorScheme
     @State private var showingToolDetails = false
+    @FocusState private var isURLFieldFocused: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: AppStyle.smallSpacing) {
@@ -43,6 +44,7 @@ struct URLDownloadView: View {
                     .foregroundColor(.appTextSecondary)
             }
             .buttonStyle(.plain)
+            .hoverHighlight()
             .help("yt-dlp status and updates")
         }
     }
@@ -57,6 +59,7 @@ struct URLDownloadView: View {
             TextField("Paste a video URL", text: $appViewModel.downloadURLString)
                 .textFieldStyle(.plain)
                 .font(.system(size: AppStyle.bodyFontSize))
+                .focused($isURLFieldFocused)
                 .disabled(appViewModel.downloadState.isActive)
                 .onSubmit {
                     if appViewModel.canStartDownload { appViewModel.startDownload() }
@@ -70,6 +73,8 @@ struct URLDownloadView: View {
                         .foregroundColor(.appTextTertiary)
                 }
                 .buttonStyle(.plain)
+                .hoverHighlight(cornerRadius: 10, padding: 2)
+                .help("Clear")
             }
         }
         .padding(.horizontal, 12)
@@ -79,9 +84,17 @@ struct URLDownloadView: View {
                 .fill(colorScheme == .dark ? Color.appSurfaceLight : Color.appSurfaceLightLight)
         )
         .overlay(
+            // Focus ring, as a native text field draws when it becomes first responder.
             RoundedRectangle(cornerRadius: AppStyle.smallCornerRadius)
-                .stroke(colorScheme == .dark ? Color.appBorder : Color.appBorderLight, lineWidth: 1)
+                .stroke(isURLFieldFocused ? Color.appAccent
+                                          : (colorScheme == .dark ? Color.appBorder : Color.appBorderLight),
+                        lineWidth: isURLFieldFocused ? 2 : 1)
         )
+        // The plain TextField only occupies the text itself, so clicks on the
+        // surrounding padding would otherwise fall through and focus nothing.
+        .contentShape(Rectangle())
+        .onTapGesture { isURLFieldFocused = true }
+        .cursor(.iBeam)
     }
 
     private var kindPicker: some View {
@@ -107,9 +120,8 @@ struct URLDownloadView: View {
                 .truncationMode(.middle)
             Spacer()
             Button("Change") { appViewModel.selectDownloadDirectory() }
-                .buttonStyle(.plain)
+                .buttonStyle(.link())
                 .font(.system(size: AppStyle.captionFontSize, weight: .medium))
-                .foregroundColor(.appAccent)
                 .disabled(appViewModel.downloadState.isActive)
         }
     }
@@ -177,9 +189,8 @@ struct URLDownloadView: View {
                             .lineLimit(1)
                             .truncationMode(.middle)
                         Button("Show in Finder") { appViewModel.revealDownloadedVideo() }
-                            .buttonStyle(.plain)
+                            .buttonStyle(.link())
                             .font(.system(size: AppStyle.captionFontSize, weight: .medium))
-                            .foregroundColor(.appAccent)
                     }
                 }
             }
@@ -214,9 +225,8 @@ struct URLDownloadView: View {
                         .buttonStyle(.glass(color: .appWarning, compact: true))
                         .disabled(appViewModel.updateState.isBusy)
                     Button("Retry") { appViewModel.startDownload() }
-                        .buttonStyle(.plain)
+                        .buttonStyle(.link())
                         .font(.system(size: AppStyle.captionFontSize, weight: .medium))
-                        .foregroundColor(.appAccent)
                 }
                 updateStatusLine
             } else if !failure.details.isEmpty {
@@ -263,6 +273,43 @@ struct URLDownloadView: View {
     private var toolDetails: some View {
         VStack(alignment: .leading, spacing: 6) {
             Divider()
+
+            // Attribution: downloads are entirely the work of a separate
+            // open-source project, and its update cadence is why this panel
+            // exists at all.
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Powered by yt-dlp")
+                    .font(.system(size: AppStyle.captionFontSize, weight: .semibold))
+                    .foregroundColor(colorScheme == .dark ? .appText : .appTextLight)
+
+                Text("""
+                URL downloads are handled by yt-dlp, a free and open-source \
+                command-line media downloader supporting thousands of sites. \
+                It is a separate project, installed and updated independently \
+                of this app.
+                """)
+                    .font(.system(size: AppStyle.captionFontSize))
+                    .foregroundColor(.appTextSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Text("""
+                Sites change their players often, which breaks extraction until \
+                yt-dlp catches up — so keeping it current is usually the fix \
+                when a download stops working.
+                """)
+                    .font(.system(size: AppStyle.captionFontSize))
+                    .foregroundColor(.appTextTertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Link("github.com/yt-dlp/yt-dlp",
+                     destination: URL(string: "https://github.com/yt-dlp/yt-dlp")!)
+                    .font(.system(size: AppStyle.captionFontSize, weight: .medium))
+                    .cursor(.pointingHand)
+            }
+            .padding(.bottom, 2)
+
+            Divider()
+
             HStack {
                 Text("yt-dlp")
                     .font(.system(size: AppStyle.captionFontSize, weight: .semibold))

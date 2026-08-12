@@ -1,9 +1,31 @@
 import SwiftUI
+import AppKit
+
+/// Promotes the process to a regular, activatable app.
+///
+/// Launched as a bare SwiftPM executable there is no .app bundle, so macOS
+/// treats the process as an accessory: the window opens without ever becoming
+/// key. A non-key window cannot host a text caret, which is why clicking into a
+/// text field did nothing while right-click → Paste still worked — context menus
+/// do not require key status. Setting the policy explicitly restores normal
+/// focus, keyboard input and menu-bar behaviour whether or not the binary is
+/// wrapped in a bundle.
+final class AppDelegate: NSObject, NSApplicationDelegate {
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        NSApp.setActivationPolicy(.regular)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        true
+    }
+}
 
 @main
 struct ArielSplitterApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var appViewModel = AppViewModel()
-    
+
     var body: some Scene {
         WindowGroup {
             ContentView()

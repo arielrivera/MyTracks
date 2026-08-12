@@ -5,15 +5,22 @@ struct DragDropView: View {
     @EnvironmentObject var appViewModel: AppViewModel
     @Environment(\.colorScheme) var colorScheme
     @State private var isDragging = false
-    
+    @State private var isHovering = false
+
+    /// Highlighted while dragging a file over the zone, and — more subtly — on
+    /// hover, since the zone is also a click target ("or click to browse") and
+    /// previously gave no indication of that until clicked.
+    private var isHighlighted: Bool { isDragging || isHovering }
+
     var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: AppStyle.largeCornerRadius)
                 .stroke(style: StrokeStyle(lineWidth: 2, dash: [8, 4]))
-                .fill(isDragging ? Color.appAccent : (colorScheme == .dark ? Color.appBorder : Color.appBorderLight))
-            
+                .fill(isHighlighted ? Color.appAccent : (colorScheme == .dark ? Color.appBorder : Color.appBorderLight))
+
             RoundedRectangle(cornerRadius: AppStyle.largeCornerRadius)
-                .fill(isDragging ? Color.appAccent.opacity(0.05) : Color.clear)
+                .fill(isDragging ? Color.appAccent.opacity(0.05)
+                                 : (isHovering ? Color.appAccent.opacity(0.02) : Color.clear))
             
             VStack(spacing: AppStyle.spacing) {
                 ZStack {
@@ -58,9 +65,12 @@ struct DragDropView: View {
             handleDrop(providers: providers)
             return true
         }
+        .contentShape(RoundedRectangle(cornerRadius: AppStyle.largeCornerRadius))
         .onTapGesture {
             appViewModel.openFileDialog()
         }
+        .onHover { isHovering = $0 }
+        .animation(.easeOut(duration: 0.15), value: isHovering)
         .padding(.horizontal, 2)
     }
     
