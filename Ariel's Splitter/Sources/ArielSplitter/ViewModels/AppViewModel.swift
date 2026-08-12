@@ -37,12 +37,24 @@ class AppViewModel: ObservableObject {
     @Published var ytDlpPath: URL?
     @Published var ytDlpVersion: String?
 
+    // MARK: - Audio format
+    /// Format stems are written in. Persisted, since it is a standing
+    /// preference rather than a per-run choice.
+    @Published var stemFormat: AudioFormat {
+        didSet { UserDefaults.standard.set(stemFormat.rawValue, forKey: "stemFormat") }
+    }
+    @Published var stemBitrate: AudioBitrate {
+        didSet { UserDefaults.standard.set(stemBitrate.rawValue, forKey: "stemBitrate") }
+    }
+
     // MARK: - Export
     @Published var isShowingExport = false
     @Published var exportMode: ExportMode = .mixed
     @Published var exportState: ExportState = .configuring
     @Published var exportSelection: Set<UUID> = []
     @Published var exportDestination: URL
+    @Published var exportFormat: AudioFormat = .wav
+    @Published var exportBitrate: AudioBitrate = .default
 
     // MARK: - Settings
     @Published var isShowingSettings = false
@@ -114,6 +126,13 @@ class AppViewModel: ObservableObject {
         // Exporting means "put a copy somewhere I choose", so it defaults to
         // Downloads rather than the folder the stems already live in.
         exportDestination = Self.downloadsDirectory
+
+        // WAV stays the default: it is what the mixer reads most cheaply, and
+        // compressing by surprise would be a poor default for source separation.
+        let storedFormat = UserDefaults.standard.string(forKey: "stemFormat")
+        stemFormat = storedFormat.flatMap(AudioFormat.init(rawValue:)) ?? .wav
+        let storedBitrate = UserDefaults.standard.integer(forKey: "stemBitrate")
+        stemBitrate = AudioBitrate(rawValue: storedBitrate) ?? .default
         setupDefaultOutputDirectory()
         setupDefaultTracks()
         refreshToolStatus()
@@ -506,6 +525,12 @@ class AppViewModel: ObservableObject {
                 )
                 appLog("engine.separate returned")
                 
+                // separate.py always writes WAV; compress afterwards if the user
+                // asked for something smaller.
+                let finalFiles = self.stemFormat == .wav
+                    ? producedFiles
+                    : await self.compressStems(producedFiles)
+
                 // Match on the Demucs source name against the paths the script
                 // reported, rather than rebuilding a filename from the display
                 // name. The two had drifted: "Piano & Keys".rawValue never
@@ -514,7 +539,7 @@ class AppViewModel: ObservableObject {
                 // are case-insensitive by default.
                 for i in self.stemTracks.indices {
                     let sourceName = self.stemTracks[i].category.demucsSourceName
-                    if let fileURL = producedFiles[sourceName],
+                    if let fileURL = finalFiles[sourceName],
                        FileManager.default.fileExists(atPath: fileURL.path) {
                         self.stemTracks[i].fileURL = fileURL
                     }
@@ -533,6 +558,44 @@ class AppViewModel: ObservableObject {
         }
     }
     
+    /// Compress the freshly written WAV stems to the configured format.
+    ///
+    /// A stem that fails to convert keeps its WAV rather than disappearing, so a
+    /// codec problem costs disk space instead of the whole run.
+    private func compressStems(_ produced: [String: URL]) async -> [String: URL] {
+        let format = stemFormat
+        let bitrate = stemBitrate.rawValue
+        let items = Array(produced)
+        var converted = produced
+
+        for (index, item) in items.enumerated() {
+            separationState = .separating(
+                progress: 0.90 + 0.10 * (Double(index) / Double(max(items.count, 1))),
+                currentStem: "Converting \(item.key) to \(format.title)...",
+                resources: nil
+            )
+
+            // ffmpeg runs synchronously; keep it off the main actor.
+            let result = await Task.detached { () -> URL? in
+                do {
+                    return try AudioTranscoder.convertReplacingOriginal(
+                        source: item.value, format: format, bitrateKbps: bitrate
+                    )
+                } catch {
+                    return nil
+                }
+            }.value
+
+            if let result {
+                converted[item.key] = result
+            } else {
+                appLog("Could not convert \(item.key) to \(format.title); keeping WAV")
+            }
+        }
+
+        return converted
+    }
+
     func cancelSeparation() {
         separationEngine?.cancel()
         separationState = .cancelled
@@ -639,6 +702,10 @@ class AppViewModel: ObservableObject {
     func presentExport() {
         exportState = .configuring
         exportSelection = Set(exportableTracks.map(\.id))
+        // Default to the format the stems are already in, so the common case is
+        // a straight copy with no re-encode.
+        exportFormat = stemFormat
+        exportBitrate = stemBitrate
         isShowingExport = true
     }
 
@@ -677,35 +744,74 @@ class AppViewModel: ObservableObject {
             do {
                 try FileManager.default.createDirectory(at: destination, withIntermediateDirectories: true)
 
+                let format = self.exportFormat
+                let bitrate = self.exportBitrate.rawValue
                 var written = 0
+
                 switch mode {
                 case .mixed:
                     guard let engine = self.audioEngine else { throw ExportError.noMixerLoaded }
                     self.exportState = .exporting(progress: 0.2, detail: "Mixing down...")
-                    let target = Self.availableURL(in: destination, baseName: "\(self.exportBaseName)_mix", ext: "wav")
-                    try await engine.exportMix(to: target, tracks: self.stemTracks)
+
+                    let target = Self.availableURL(
+                        in: destination,
+                        baseName: "\(self.exportBaseName)_mix",
+                        ext: format.fileExtension
+                    )
+
+                    if format == .wav {
+                        try await engine.exportMix(to: target, tracks: self.stemTracks)
+                    } else {
+                        // exportMix renders PCM, so compressed targets are
+                        // rendered to a temporary WAV and then encoded.
+                        let temp = FileManager.default.temporaryDirectory
+                            .appendingPathComponent("arielsplitter-mix-\(UUID().uuidString).wav")
+                        try await engine.exportMix(to: temp, tracks: self.stemTracks)
+
+                        self.exportState = .exporting(progress: 0.6, detail: "Encoding \(format.title)...")
+                        try await Task.detached {
+                            try AudioTranscoder.convert(source: temp, destination: target,
+                                                        format: format, bitrateKbps: bitrate)
+                        }.value
+                        try? FileManager.default.removeItem(at: temp)
+                    }
                     written = 1
 
                 case .individual:
                     let tracks = self.exportableTracks.filter { self.exportSelection.contains($0.id) }
                     guard !tracks.isEmpty else { throw ExportError.nothingSelected }
 
+                    // The stems on disk are in stemFormat; only that exact match
+                    // can be copied. ALAC and AAC share the .m4a extension, so
+                    // comparing extensions alone would copy one as the other.
+                    let canCopy = format == self.stemFormat
+
                     for (index, track) in tracks.enumerated() {
                         guard let source = track.fileURL else { continue }
                         self.exportState = .exporting(
                             progress: Double(index) / Double(tracks.count),
-                            detail: "Copying \(track.displayName)..."
+                            detail: canCopy
+                                ? "Copying \(track.displayName)..."
+                                : "Encoding \(track.displayName) as \(format.title)..."
                         )
 
                         let target = Self.availableURL(
                             in: destination,
                             baseName: source.deletingPathExtension().lastPathComponent,
-                            ext: source.pathExtension
+                            ext: format.fileExtension
                         )
-                        // Exporting into the folder the stems already live in
-                        // would be a copy onto itself; count it and move on.
-                        if source.standardizedFileURL != target.standardizedFileURL {
-                            try FileManager.default.copyItem(at: source, to: target)
+
+                        if canCopy {
+                            // Exporting into the folder the stems already live
+                            // in would be a copy onto itself; count it and move on.
+                            if source.standardizedFileURL != target.standardizedFileURL {
+                                try FileManager.default.copyItem(at: source, to: target)
+                            }
+                        } else {
+                            try await Task.detached {
+                                try AudioTranscoder.convert(source: source, destination: target,
+                                                            format: format, bitrateKbps: bitrate)
+                            }.value
                         }
                         written += 1
                     }

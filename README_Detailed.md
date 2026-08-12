@@ -35,7 +35,7 @@ The app shells out to two external binaries:
 
 | Tool | Required? | Used for |
 | --- | --- | --- |
-| `ffmpeg` | **Yes** | Decoding formats libsndfile cannot read (`.m4a`, `.mp4`, AAC) |
+| `ffmpeg` | **Yes** | Decoding formats libsndfile cannot read (`.m4a`, `.mp4`, AAC), and compressing stems and exports |
 | `yt-dlp` | No | Downloading media from a URL only |
 
 Both are located by probing `/opt/homebrew/bin`, `/usr/local/bin`,
@@ -47,9 +47,10 @@ inherits a minimal `PATH` that excludes Homebrew.
 - Apple Silicon Mac (M1 or newer) — currently tested only on M1 Macs
 - macOS 14 Sonoma or later
 - At least 8 GB RAM (16 GB recommended for long tracks)
-- Several GB of free disk space. Budget roughly **270 MB per 6-stem run**
-  (stems are uncompressed WAV, ~45 MB each) plus ~500 MB of Demucs model cache
-  in `~/.cache/huggingface`.
+- Several GB of free disk space. At the WAV default, budget roughly **270 MB per
+  6-stem run** (~45 MB per stem), plus ~500 MB of Demucs model cache in
+  `~/.cache/huggingface`. Choosing FLAC roughly halves that, and a lossy format
+  cuts it by around 90% — see [Audio format](#audio-format).
 
 ## Installation
 
@@ -172,6 +173,7 @@ Use **New Session** in the header to start over.
 Opened from the gear beside the title or `Cmd + ,`:
 
 - **Locations** — output folder for stems, download folder for URL fetches.
+- **Audio format** — the format and bitrate separated stems are written in.
 - **Downloader** — yt-dlp version, resolved path, and update controls.
 - **Environment** — read-only. Resolved `ffmpeg` and Python paths, and any
   missing separation modules. Worth checking first when a run fails for
@@ -252,6 +254,7 @@ MyTracks/
 | `SettingsView.swift` | Consolidated configuration and environment diagnostics |
 | `ExportDialogView.swift` | Export flow: mix or stems, destination, result |
 | `URLValidator.swift` | Basic link sanity checking for the drop zone |
+| `AudioTranscoder.swift` | ffmpeg-backed conversion between the offered formats |
 | `MediaDownloader.swift` | Drives `yt-dlp`, parses progress, resolves output paths |
 | `MediaToolLocator.swift` | Locates external binaries despite a GUI app's minimal `PATH` |
 | `ToolUpdater.swift` | Updates `yt-dlp` via whichever installer owns it |
@@ -289,7 +292,7 @@ Replace `samplesong.x` with any supported audio or video file. This is intended 
 
 ## Output files
 
-Each separation run produces one 44.1 kHz stereo WAV file per selected stem in the
+Each separation run produces one 44.1 kHz stereo file per selected stem in the
 chosen output folder. Filenames are prefixed with a filesystem-safe form of the
 source filename, so separating several songs into one folder does not overwrite
 earlier runs:
@@ -312,6 +315,31 @@ else with underscores, and is capped at 60 characters.
 rebuilding filenames from display names — so the naming scheme can change without
 the two sides drifting apart.
 
+### Audio format
+
+WAV is the default. **Settings → Audio format** changes what stems are written as:
+
+| Format | Kind | Extension | Notes |
+| --- | --- | --- | --- |
+| WAV | Uncompressed | `.wav` | Largest, universally supported |
+| FLAC | Lossless | `.flac` | Roughly half the size of WAV |
+| ALAC | Lossless | `.m4a` | Apple Lossless |
+| MP3 | Lossy | `.mp3` | Smallest, most widely playable |
+| AAC | Lossy | `.m4a` | Better than MP3 at the same bitrate |
+
+Lossy formats offer 128/192/256/320 kbps.
+
+Separation always runs at full quality: `separate.py` writes WAV, and the app
+compresses afterwards with ffmpeg. Choosing a lossy format therefore costs nothing
+in separation accuracy, only in what is stored. A stem that fails to convert keeps
+its WAV rather than being lost.
+
+Opus and Vorbis are deliberately absent. They compress well, but support across
+music software is patchy, and a stem that will not import is of no use.
+
+> For remixing or further processing, prefer WAV or FLAC — separated stems already
+> carry artefacts from the separation itself, and lossy encoding compounds them.
+
 ### Exporting
 
 Separation output is not the same as an export. The stems above stay in the
@@ -319,8 +347,12 @@ output folder; **Export...** in the mixer copies what you choose somewhere else,
 defaulting to `~/Downloads`:
 
 - **Current mix** — one file combining the stems at their current mixer volumes,
-  with muted stems left out, written as `<source name>_mix.wav`.
+  with muted stems left out, named `<source name>_mix`.
 - **Individual stems** — a copy of each selected stem at full volume.
+
+The dialog offers the same formats as above, defaulting to whatever the stems are
+already in so the common case is a straight copy with no re-encode. Choosing a
+different format transcodes on the way out.
 
 Exports never overwrite: if the target name already exists, a numbered copy is
 written instead.

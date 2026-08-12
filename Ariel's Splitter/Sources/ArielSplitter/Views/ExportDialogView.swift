@@ -22,6 +22,7 @@ struct ExportDialogView: View {
                         if appViewModel.exportMode == .individual {
                             stemChooser
                         }
+                        formatRow
                         destinationRow
                     case .exporting(let progress, let detail):
                         progressBody(progress: progress, detail: detail)
@@ -207,6 +208,41 @@ struct ExportDialogView: View {
                 Text("Select at least one stem.")
                     .font(.system(size: AppStyle.captionFontSize))
                     .foregroundColor(.appWarning)
+            }
+        }
+    }
+
+    private var formatRow: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Format")
+                .font(.system(size: AppStyle.headingFontSize, weight: .semibold))
+                .foregroundColor(colorScheme == .dark ? .appText : .appTextLight)
+
+            AudioFormatPicker(
+                format: $appViewModel.exportFormat,
+                bitrate: $appViewModel.exportBitrate,
+                title: "Export as",
+                help: "Defaults to the format the stems are already in, which exports as a straight copy."
+            )
+
+            // Re-encoding a lossy stem into another lossy format compounds the
+            // loss, which is worth saying out loud rather than burying.
+            if appViewModel.exportFormat.isLossy
+                && appViewModel.stemFormat.isLossy
+                && appViewModel.exportFormat != appViewModel.stemFormat {
+                Label("Your stems are already \(appViewModel.stemFormat.title). Re-encoding to another lossy format loses more quality.",
+                      systemImage: "exclamationmark.triangle.fill")
+                    .font(.system(size: AppStyle.captionFontSize))
+                    .foregroundColor(.appWarning)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            if !AudioTranscoder.isAvailable && appViewModel.exportFormat != appViewModel.stemFormat {
+                Label("ffmpeg is required to convert between formats, and was not found.",
+                      systemImage: "exclamationmark.triangle.fill")
+                    .font(.system(size: AppStyle.captionFontSize))
+                    .foregroundColor(.appWarning)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
     }

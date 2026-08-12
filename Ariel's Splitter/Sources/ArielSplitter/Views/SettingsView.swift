@@ -17,6 +17,7 @@ struct SettingsView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: AppStyle.largeSpacing) {
                     locationsSection
+                    audioFormatSection
                     downloaderSection
                     environmentSection
                 }
@@ -92,6 +93,35 @@ struct SettingsView: View {
                     action: { appViewModel.selectDownloadDirectory() },
                     isDisabled: appViewModel.downloadState.isActive
                 )
+            }
+        }
+    }
+
+    private var audioFormatSection: some View {
+        settingsSection("Audio format", icon: "waveform.circle") {
+            VStack(alignment: .leading, spacing: AppStyle.smallSpacing) {
+                AudioFormatPicker(
+                    format: $appViewModel.stemFormat,
+                    bitrate: $appViewModel.stemBitrate,
+                    title: "Separated stems",
+                    help: "Stems are always separated at full quality, then written in this format."
+                )
+
+                if appViewModel.stemFormat.isLossy {
+                    Label("Lossy formats discard audio data. For remixing or further processing, prefer WAV or FLAC.",
+                          systemImage: "info.circle")
+                        .font(.system(size: AppStyle.captionFontSize))
+                        .foregroundColor(.appTextTertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                if !AudioTranscoder.isAvailable && appViewModel.stemFormat != .wav {
+                    Label("ffmpeg is required for anything other than WAV, and was not found.",
+                          systemImage: "exclamationmark.triangle.fill")
+                        .font(.system(size: AppStyle.captionFontSize))
+                        .foregroundColor(.appWarning)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
         }
     }

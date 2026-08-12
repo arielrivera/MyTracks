@@ -10,6 +10,7 @@ A native macOS application for AI-powered musical source separation. Split a son
 - Real-time progress with status messages; the window shows only what applies to the current stage.
 - Built-in mixer to solo, mute, and set levels after separation.
 - Export the current mix or individual stems, without overwriting earlier exports.
+- Write stems and exports as WAV, FLAC, ALAC, MP3, or AAC — separation always runs at full quality.
 - Output files are named after the source track, so separate runs don't overwrite each other.
 - Consolidated settings (`⌘,`), including yt-dlp updates and environment diagnostics.
 - Native SwiftUI interface, no Electron or web wrapper.
