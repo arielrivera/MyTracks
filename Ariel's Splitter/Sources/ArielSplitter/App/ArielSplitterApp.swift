@@ -58,17 +58,6 @@ struct ArielSplitterApp: App {
                 .keyboardShortcut("r", modifiers: .command)
                 .disabled(appViewModel.separationState != .completed)
             }
-            CommandMenu("Debug") {
-                Button("Run Auto Test") {
-                    let testURL = URL(fileURLWithPath: NSHomeDirectory())
-                        .appendingPathComponent("Downloads/samplesong.x")
-                    appViewModel.loadAudioFile(url: testURL)
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-                        appViewModel.startSeparation()
-                    }
-                }
-                .keyboardShortcut("t", modifiers: [.command, .option])
-            }
         }
     }
 }

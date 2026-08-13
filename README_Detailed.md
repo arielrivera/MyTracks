@@ -291,16 +291,6 @@ The app automatically picks the model based on the selected stems:
 - `htdemucs` — used for the classic 4-stem separation: vocals, drums, bass, other
 - `htdemucs_6s` — used when guitar, piano, or other instruments are requested
 
-## Auto test
-
-A built-in debug menu item loads a hard-coded test file and starts separation automatically:
-
-- Menu: **Debug → Run Auto Test**
-- Shortcut: `Cmd + Option + T`
-- Expected test file: `~/Downloads/samplesong.x`
-
-Replace `samplesong.x` with any supported audio or video file. This is intended for development and CI smoke tests.
-
 ## Output files
 
 Each separation run produces one 44.1 kHz stereo file per selected stem in the

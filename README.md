@@ -26,7 +26,7 @@ suggestion you can accept or dismiss.
 **Mixer** — after separation the window becomes the mixer: solo, mute, and set
 levels per stem, then export.
 
-![Mixer with seven separated stems](docs/screenshots/mixer.png)
+![Mixer with six separated stems, above the output file listing](docs/screenshots/mixer.png)
 
 **Export** — one dialog covers the whole job: the current mix or individual
 stems, the output format, and where it goes.
@@ -100,18 +100,6 @@ cd "Ariel's Splitter" && swift build
 > `.venv/` or `env/` near the project and rejects any interpreter missing a
 > required module. A global `pip install` is not reliably picked up, because a
 > GUI-launched app does not inherit your shell's `PATH`.
-
-## Quick test
-
-Place a test audio/video file at:
-
-```text
-~/Downloads/samplesong.x
-```
-
-Then launch the app and choose **Debug → Run Auto Test** (or press `Cmd + Option + T`).
-
-> Replace `samplesong.x` with any supported audio or video file.
 
 ## Project structure
 

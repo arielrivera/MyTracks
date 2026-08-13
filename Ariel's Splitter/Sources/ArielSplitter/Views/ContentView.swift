@@ -105,18 +105,6 @@ struct ContentView: View {
             ExportDialogView()
                 .environmentObject(appViewModel)
         }
-        .onAppear {
-            let triggerURL = URL(fileURLWithPath: "/tmp/ariel_splitter_autotest")
-            guard FileManager.default.fileExists(atPath: triggerURL.path) else { return }
-            let testURL = URL(fileURLWithPath: NSHomeDirectory())
-                .appendingPathComponent("Downloads/samplesong.x")
-            Task { @MainActor in
-                try? await Task.sleep(nanoseconds: 2_000_000_000)
-                appViewModel.loadAudioFile(url: testURL)
-                try? await Task.sleep(nanoseconds: 3_000_000_000)
-                appViewModel.startSeparation()
-            }
-        }
     }
 }
 
