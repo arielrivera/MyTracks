@@ -50,6 +50,21 @@ class AppViewModel: ObservableObject {
     // MARK: - Output files
     @Published var outputFiles: [OutputFile] = []
 
+    // MARK: - Busy state
+
+    /// Set while a dropped or chosen file is being read.
+    ///
+    /// Reading is asynchronous — AVAsset loads duration and tracks — and until
+    /// it finishes `hasAudioFile` is still false, so the drop zone would
+    /// otherwise stay live and accept a second file that races the first.
+    @Published var isLoadingAudioFile = false
+
+    /// Taking media in: reading a file, or downloading one.
+    var isIngestingMedia: Bool { isLoadingAudioFile || downloadState.isActive }
+
+    /// Any long-running job. Used to refuse input that would disturb it.
+    var isBusy: Bool { isIngestingMedia || separationState.isActive }
+
     // MARK: - Audio format
     /// Format stems are written in. Persisted, since it is a standing
     /// preference rather than a per-run choice.
@@ -93,7 +108,7 @@ class AppViewModel: ObservableObject {
     var hasSelection: Bool { !selectedStems.isEmpty }
     
     var canStartSeparation: Bool {
-        hasAudioFile && hasSelection && !separationState.isActive && outputDirectory != nil
+        hasAudioFile && hasSelection && !isBusy && outputDirectory != nil
     }
     
     var allSelected: Bool {
@@ -129,7 +144,7 @@ class AppViewModel: ObservableObject {
     }
 
     var canStartDownload: Bool {
-        urlValidation.isValid && !downloadState.isActive && !separationState.isActive
+        urlValidation.isValid && !isBusy
     }
 
     var isYtDlpAvailable: Bool { ytDlpPath != nil }
@@ -201,7 +216,7 @@ class AppViewModel: ObservableObject {
     /// explicit suggestion the user accepts: nothing is filled in on their
     /// behalf, and a dismissed value is not offered again.
     func checkClipboardForURL() {
-        guard downloadURLString.isEmpty, !downloadState.isActive, !separationState.isActive else {
+        guard downloadURLString.isEmpty, !isBusy else {
             clipboardSuggestion = nil
             return
         }
@@ -305,6 +320,9 @@ class AppViewModel: ObservableObject {
     
     // MARK: - File Management
     func openFileDialog() {
+        // Reachable from the File menu at any time, including mid-run.
+        guard !isBusy else { return }
+
         let panel = NSOpenPanel()
         panel.allowedContentTypes = [.audio, .wav, .mp3, .m4a, .aiff, .flac]
         panel.allowsMultipleSelection = false
@@ -317,7 +335,16 @@ class AppViewModel: ObservableObject {
     
     func loadAudioFile(url: URL) {
         appLog("loadAudioFile(url: \(url.path))")
+        // Refuse a second file while one is still being read.
+        guard !isLoadingAudioFile else {
+            appLog("Ignoring \(url.lastPathComponent): already loading a file")
+            return
+        }
+        isLoadingAudioFile = true
+
         Task { @MainActor in
+            defer { self.isLoadingAudioFile = false }
+
             guard FileManager.default.fileExists(atPath: url.path) else {
                 self.separationState = .failed("File not found: \(url.lastPathComponent)")
                 return
@@ -660,6 +687,15 @@ class AppViewModel: ObservableObject {
     /// `canStartSeparation` requires a folder — with nothing in the main window
     /// explaining why, since the folder moved to Settings.
     func reset() {
+        // Stop work in flight first. New Session is offered whenever a file is
+        // loaded, which includes mid-separation; clearing state without
+        // cancelling left the Python process running and reporting results into
+        // a session that no longer existed.
+        separationEngine?.cancel()
+        separationEngine = nil
+        mediaDownloader?.cancel()
+        mediaDownloader = nil
+
         audioEngine?.stop()
         audioEngine = nil
         playbackTimer?.invalidate()

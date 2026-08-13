@@ -33,20 +33,32 @@ struct DragDropView: View {
 
             VStack(spacing: AppStyle.spacing) {
                 icon
-                headings
-                urlField
-                validationMessage
-                clipboardSuggestion
-                formatChips
+                if appViewModel.isLoadingAudioFile {
+                    // Reading a file is asynchronous and can take a moment on a
+                    // long track, so say so rather than looking idle.
+                    loadingState
+                } else {
+                    headings
+                    urlField
+                    validationMessage
+                    clipboardSuggestion
+                    formatChips
+                }
             }
             .padding(AppStyle.largeSpacing)
+            .opacity(appViewModel.isIngestingMedia && !appViewModel.isLoadingAudioFile ? 0.5 : 1)
         }
+        // Refuse further input while a file is being read or a download runs:
+        // the zone stays on screen during both, and a second drop would race the
+        // first.
         .onDrop(of: [.audio, .fileURL, .url, .plainText], isTargeted: $isDragging) { providers in
+            guard !appViewModel.isIngestingMedia else { return false }
             handleDrop(providers: providers)
             return true
         }
+        .disabled(appViewModel.isIngestingMedia)
         .onHover { hovering in
-            isHovering = hovering
+            isHovering = hovering && !appViewModel.isIngestingMedia
             if hovering { appViewModel.checkClipboardForURL() }
         }
         .animation(.easeOut(duration: 0.15), value: isHovering)
@@ -82,6 +94,20 @@ struct DragDropView: View {
             Image(systemName: "music.note.list")
                 .font(.system(size: 28, weight: .semibold))
                 .foregroundColor(.white)
+        }
+    }
+
+    private var loadingState: some View {
+        VStack(spacing: AppStyle.smallSpacing) {
+            ProgressView()
+                .progressViewStyle(.circular)
+                .controlSize(.small)
+            Text("Reading audio file...")
+                .font(.system(size: AppStyle.headingFontSize, weight: .semibold))
+                .foregroundColor(colorScheme == .dark ? .appText : .appTextLight)
+            Text("Just a moment")
+                .font(.system(size: AppStyle.bodyFontSize))
+                .foregroundColor(colorScheme == .dark ? .appTextSecondary : .appTextSecondaryLight)
         }
     }
 
