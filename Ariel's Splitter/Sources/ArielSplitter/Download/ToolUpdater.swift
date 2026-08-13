@@ -103,10 +103,14 @@ struct ToolUpdater {
             return .failure(upgrade.output)
 
         case .pip:
-            let result = MediaToolLocator.run(
-                URL(fileURLWithPath: "/usr/bin/env"),
-                ["python3", "-m", "pip", "install", "--upgrade", "yt-dlp"]
-            )
+            // Upgrade through the same interpreter that owns this copy —
+            // `/usr/bin/env python3` would miss the project virtualenv.
+            let python = MediaToolLocator.companionPython(for: ytDlp)
+                ?? URL(fileURLWithPath: "/usr/bin/env")
+            let arguments = MediaToolLocator.companionPython(for: ytDlp) == nil
+                ? ["python3", "-m", "pip", "install", "--upgrade", "yt-dlp"]
+                : ["-m", "pip", "install", "--upgrade", "yt-dlp"]
+            let result = MediaToolLocator.run(python, arguments)
             return result.succeeded ? .success(result.output) : .failure(result.output)
 
         case .standalone:
@@ -129,7 +133,11 @@ struct ToolUpdater {
     static func updateCommand(for ytDlp: URL) -> String {
         switch MediaToolLocator.installMethod(of: ytDlp, tool: .ytDlp) {
         case .homebrew: return "brew upgrade yt-dlp"
-        case .pip: return "python3 -m pip install --upgrade yt-dlp"
+        case .pip:
+            if let python = MediaToolLocator.companionPython(for: ytDlp) {
+                return "\(python.path) -m pip install --upgrade yt-dlp"
+            }
+            return "python3 -m pip install --upgrade yt-dlp"
         case .standalone: return "yt-dlp -U"
         case .unknown: return "brew upgrade yt-dlp"
         }

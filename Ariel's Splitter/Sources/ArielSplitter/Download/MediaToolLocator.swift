@@ -75,6 +75,15 @@ enum MediaToolLocator {
             return URL(fileURLWithPath: override)
         }
 
+        // Project virtualenv first. setup.sh installs yt-dlp there so a
+        // checkout is self-contained; Homebrew/system copies are a fallback.
+        for directory in projectBinDirectories() {
+            let candidate = (directory as NSString).appendingPathComponent(tool.rawValue)
+            if FileManager.default.isExecutableFile(atPath: candidate) {
+                return URL(fileURLWithPath: candidate)
+            }
+        }
+
         for directory in searchDirectories {
             let candidate = (directory as NSString).appendingPathComponent(tool.rawValue)
             if FileManager.default.isExecutableFile(atPath: candidate) {
@@ -90,6 +99,32 @@ enum MediaToolLocator {
 
         toolLog("Could not locate \(tool.rawValue)")
         return nil
+    }
+
+    /// `venv/bin`, `.venv/bin` and `env/bin` sitting next to the project.
+    ///
+    /// Walks up from `separate.py` the same way `PythonLocator` does, so a
+    /// GUI-launched app still finds tools the setup script put in the
+    /// checkout even though they are not on `PATH`.
+    static func projectBinDirectories() -> [String] {
+        var directory = SeparationEngine.scriptURL.deletingLastPathComponent()
+        var directories: [String] = []
+        for _ in 0..<8 {
+            for venvName in ["venv", ".venv", "env"] {
+                directories.append(directory.appendingPathComponent("\(venvName)/bin").path)
+            }
+            let parent = directory.deletingLastPathComponent()
+            if parent == directory { break }
+            directory = parent
+        }
+        return directories
+    }
+
+    /// The interpreter that sits beside a tool in a virtualenv, if any.
+    static func companionPython(for toolURL: URL) -> URL? {
+        let python = toolURL.deletingLastPathComponent().appendingPathComponent("python3")
+        guard FileManager.default.isExecutableFile(atPath: python.path) else { return nil }
+        return python
     }
 
     private static func locateViaLoginShell(_ tool: MediaTool) -> URL? {
@@ -113,9 +148,27 @@ enum MediaToolLocator {
     /// than guessing from the path — a Homebrew install and a manual install can
     /// both live in /usr/local/bin.
     static func installMethod(of toolURL: URL, tool: MediaTool) -> InstallMethod {
-        if let brew = brewURL(),
-           run(brew, ["list", "--versions", tool.rawValue]).succeeded {
-            return .homebrew
+        // Ask whether *this path* is owned by Homebrew. `brew list` only says
+        // the formula is installed somewhere, which mis-labels a venv copy
+        // when the user also has the Homebrew formula.
+        if let brew = brewURL() {
+            let prefix = run(brew, ["--prefix"]).output
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            if !prefix.isEmpty {
+                let resolved = toolURL.resolvingSymlinksInPath().path
+                if resolved.hasPrefix(prefix) || toolURL.path.hasPrefix(prefix) {
+                    return .homebrew
+                }
+            }
+        }
+
+        // Prefer the interpreter sitting next to the tool (the project venv)
+        // over `/usr/bin/env python3`, which in a GUI app is Apple's stub.
+        if let python = companionPython(for: toolURL) {
+            let pipShow = run(python, ["-m", "pip", "show", tool.rawValue])
+            if pipShow.succeeded, pipShow.output.contains("Name:") {
+                return .pip
+            }
         }
 
         let pipShow = run(URL(fileURLWithPath: "/usr/bin/env"),

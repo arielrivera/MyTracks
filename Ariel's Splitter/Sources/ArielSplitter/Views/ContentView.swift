@@ -4,6 +4,40 @@ struct ContentView: View {
     @EnvironmentObject var appViewModel: AppViewModel
     @Environment(\.colorScheme) var colorScheme
 
+    /// Shown on launch when setup.sh has not been run, or ffmpeg/Python is
+    /// missing. Settings already reports this, but a first-time Mac never
+    /// opens Settings looking for an error.
+    private var environmentNotice: some View {
+        HStack(alignment: .top, spacing: AppStyle.smallSpacing) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundColor(.appWarning)
+            VStack(alignment: .leading, spacing: 4) {
+                Text("This Mac is not set up yet")
+                    .font(.system(size: AppStyle.bodyFontSize, weight: .medium))
+                    .foregroundColor(colorScheme == .dark ? .appText : .appTextLight)
+                Text(appViewModel.environmentStatusSummary)
+                    .font(.system(size: AppStyle.captionFontSize))
+                    .foregroundColor(.appTextSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text("./setup.sh --install-tools")
+                    .font(.system(size: AppStyle.captionFontSize, design: .monospaced))
+                    .foregroundColor(colorScheme == .dark ? .appText : .appTextLight)
+                    .textSelection(.enabled)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(colorScheme == .dark ? Color.appSurfaceLight : Color.appSurfaceLightLight)
+                    )
+            }
+            Spacer()
+            Button("Details...") { appViewModel.openSettings() }
+                .buttonStyle(.glass(color: .appWarning, compact: true))
+        }
+        .padding(AppStyle.smallPadding)
+        .surfaceCard()
+    }
+
     /// Shown only when the output folder is missing, which silently disables
     /// Start. Without this the button would look broken for no visible reason,
     /// now that the folder is configured in Settings rather than in the flow.
@@ -43,6 +77,10 @@ struct ContentView: View {
             VStack(spacing: AppStyle.largeSpacing) {
                 // Header
                 HeaderView()
+
+                if !appViewModel.isCheckingEnvironment && !appViewModel.isEnvironmentReady {
+                    environmentNotice
+                }
 
                 if !appViewModel.hasAudioFile {
                     // Single entry point: drop a file, drop a link, paste a URL,

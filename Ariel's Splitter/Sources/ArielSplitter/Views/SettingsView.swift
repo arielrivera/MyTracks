@@ -186,7 +186,7 @@ struct SettingsView: View {
                     missingTool(
                         name: "yt-dlp",
                         detail: "Needed only for URL downloads; everything else works without it.",
-                        installCommand: "brew install yt-dlp"
+                        installCommand: "./setup.sh --install-tools"
                     )
                 }
             }
@@ -207,7 +207,7 @@ struct SettingsView: View {
                     missingTool(
                         name: "ffmpeg",
                         detail: "Required. Decodes formats libsndfile cannot read, such as .m4a and .mp4.",
-                        installCommand: "brew install ffmpeg"
+                        installCommand: "./setup.sh --install-tools"
                     )
                 }
 
@@ -351,9 +351,12 @@ struct SettingsView: View {
                     RoundedRectangle(cornerRadius: 4)
                         .fill(colorScheme == .dark ? Color.appSurfaceLight : Color.appSurfaceLightLight)
                 )
-            Button("Re-check") { appViewModel.refreshToolStatus() }
-                .buttonStyle(.link())
-                .font(.system(size: AppStyle.captionFontSize, weight: .medium))
+            Button("Re-check") {
+                appViewModel.refreshToolStatus()
+                appViewModel.refreshEnvironmentStatus()
+            }
+            .buttonStyle(.link())
+            .font(.system(size: AppStyle.captionFontSize, weight: .medium))
         }
     }
 

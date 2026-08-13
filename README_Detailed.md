@@ -38,9 +38,11 @@ The app shells out to two external binaries:
 | `ffmpeg` | **Yes** | Decoding formats libsndfile cannot read (`.m4a`, `.mp4`, AAC), and compressing stems and exports |
 | `yt-dlp` | No | Downloading media from a URL only |
 
-Both are located by probing `/opt/homebrew/bin`, `/usr/local/bin`,
-`~/.local/bin` and `/opt/local/bin` directly, because a GUI-launched app
-inherits a minimal `PATH` that excludes Homebrew.
+`yt-dlp` is installed into the project virtualenv by `setup.sh`. The app
+looks there first (`venv/bin`), then probes `/opt/homebrew/bin`,
+`/usr/local/bin`, `~/.local/bin` and `/opt/local/bin`. A GUI-launched app
+inherits a minimal `PATH` that excludes Homebrew, so those paths are checked
+directly rather than via `/usr/bin/env`.
 
 ## System requirements
 
@@ -56,22 +58,33 @@ inherits a minimal `PATH` that excludes Homebrew.
 
 ### Automatic (recommended)
 
+On a Mac that is not already set up as a development machine:
+
 ```bash
+xcode-select --install    # skip if `swift --version` already works
 cd MyTracks
-./setup.sh
+./setup.sh --install-tools
+./run.sh
 ```
 
-The script is idempotent and does the following, reporting a clear verdict:
+The script is idempotent. It reports a clear verdict and does the following:
 
-1. Confirms a Swift toolchain is present.
-2. Creates `venv/` at the repository root if missing.
-3. Installs `requirements.txt` into it.
-4. Verifies every module `separate.py` imports actually resolves.
-5. Checks for `ffmpeg` (blocking) and `yt-dlp` (optional).
-6. Runs `swift build`.
+1. Confirms Apple Silicon, macOS 14+, and enough free disk space.
+2. Re-launches itself as arm64 if the terminal is running under Rosetta, so
+   pip cannot install Intel wheels by mistake.
+3. Confirms a Swift toolchain is present (Command Line Tools are enough).
+4. Installs Homebrew, Python 3.12, and ffmpeg when they are missing and you
+   passed `--install-tools` (or confirmed the prompt).
+5. Creates `venv/` at the repository root if missing, using a Python 3.10+
+   interpreter — never Apple's `/usr/bin/python3` (3.9).
+6. Installs `requirements.txt` into it (Demucs, PyTorch, yt-dlp, …).
+7. Verifies every module `separate.py` imports actually resolves.
+8. Checks for `ffmpeg` (blocking). yt-dlp comes from the venv.
+9. Runs `swift build` and writes `ArielSplitter.app` next to `setup.sh`.
 
-Flags: `--install-tools` also installs missing tools via Homebrew;
-`--recreate` rebuilds the virtualenv from scratch.
+Flags: `--install-tools` (also `-y`) installs missing tools without asking;
+`--no-install-tools` never asks; `--recreate` rebuilds the virtualenv;
+`--release` builds the optimized binary.
 
 ### Manual
 
@@ -79,7 +92,8 @@ Flags: `--install-tools` also installs missing tools via Homebrew;
 
 ```bash
 cd MyTracks
-python3 -m venv venv
+brew install python@3.12          # not /usr/bin/python3
+python3.12 -m venv venv
 ./venv/bin/python3 -m pip install -r requirements.txt
 ```
 
@@ -90,12 +104,15 @@ wins. A global `pip install` is unreliable here: a GUI app resolves
 `/usr/bin/env python3` against a minimal `PATH`, which typically finds a bare
 system interpreter with no `numpy`.
 
-#### 2. Install the command-line tools
+#### 2. Install ffmpeg
 
 ```bash
 brew install ffmpeg    # required
-brew install yt-dlp    # optional
 ```
+
+yt-dlp is installed into the virtualenv by `requirements.txt`. The app looks
+for `venv/bin/yt-dlp` before Homebrew or `PATH`, because a GUI-launched
+process does not inherit your shell.
 
 #### 3. Verify
 
@@ -118,16 +135,30 @@ swift build -c release
 
 ## Running the app
 
-### From the terminal
+### From the repository root (recommended)
 
 ```bash
+./run.sh
+```
+
+`run.sh` builds via `setup.sh` if the virtualenv or the binary is missing,
+then launches the already-built executable. You do not need to `cd` into
+`Ariel's Splitter` or remember `swift run`.
+
+Double-click `ArielSplitter.app` after the first successful setup for the
+same result from Finder.
+
+### From the terminal, manually
+
+```bash
+cd "Ariel's Splitter"
 swift run ArielSplitter
 ```
 
 Or, after building:
 
 ```bash
-.build/debug/ArielSplitter
+"Ariel's Splitter/.build/debug/ArielSplitter"
 ```
 
 ### From Xcode

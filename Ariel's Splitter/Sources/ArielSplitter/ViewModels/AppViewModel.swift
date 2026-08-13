@@ -149,6 +149,30 @@ class AppViewModel: ObservableObject {
 
     var isYtDlpAvailable: Bool { ytDlpPath != nil }
 
+    /// True when Python and ffmpeg both look usable. Checked on launch so a
+    /// missing setup is visible in the main window, not only in Settings.
+    var isEnvironmentReady: Bool {
+        ffmpegPath != nil && pythonInterpreter?.isComplete == true
+    }
+
+    var environmentStatusSummary: String {
+        let pythonOK = pythonInterpreter?.isComplete == true
+        let ffmpegOK = ffmpegPath != nil
+        switch (pythonOK, ffmpegOK) {
+        case (false, false):
+            return "Python and ffmpeg are not ready. Separation cannot run until setup finishes."
+        case (false, true):
+            if let missing = pythonInterpreter?.missingModules, !missing.isEmpty {
+                return "Python is missing \(missing.joined(separator: ", ")). Run setup to install them."
+            }
+            return "No Python environment with the separation modules was found."
+        case (true, false):
+            return "ffmpeg is required to read many audio formats (including .m4a from URL downloads)."
+        case (true, true):
+            return ""
+        }
+    }
+
     // MARK: - Initialization
     init() {
         // Remembered choice wins; otherwise match the manual yt-dlp workflow,
@@ -171,6 +195,7 @@ class AppViewModel: ObservableObject {
         setupOutputDirectory()
         setupDefaultTracks()
         refreshToolStatus()
+        refreshEnvironmentStatus()
     }
 
     /// Re-detect yt-dlp. Cheap enough to call on appearance, and keeps the UI
@@ -183,10 +208,10 @@ class AppViewModel: ObservableObject {
         appLog("yt-dlp: \(ytDlpPath?.path ?? "not found") version \(ytDlpVersion ?? "unknown")")
     }
 
-    /// Probe the Python environment for the settings panel.
+    /// Probe the Python environment.
     ///
     /// Kept separate from `refreshToolStatus` because it spawns interpreters,
-    /// so it runs off the main thread and only when the panel is on screen.
+    /// so it runs off the main thread. Called on launch and from Settings.
     func refreshEnvironmentStatus() {
         guard !isCheckingEnvironment else { return }
         isCheckingEnvironment = true

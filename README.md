@@ -42,13 +42,17 @@ environment diagnostics.
 
 ## Requirements
 
-- Apple Silicon Mac (M1 or newer) — currently tested only on M1 Macs
+- Apple Silicon Mac (M1 or newer)
 - macOS 14 (Sonoma) or later
-- **Command Line Tools** (`xcode-select --install`) — full Xcode is *not* required
-- Python 3.10+
-- **ffmpeg** — required, not optional (see below)
-- **yt-dlp** — optional, only for downloading media from a URL
-- An internet connection the first time Demucs downloads a model (after that, processing is fully local)
+- About 4 GB of free disk space for the first install (PyTorch is large)
+- **Command Line Tools** — full Xcode is *not* required
+- An internet connection for the first setup, and again the first time Demucs
+  downloads a model (after that, processing is fully local)
+
+`./setup.sh --install-tools` will install everything else: a real Python 3.10+,
+ffmpeg, yt-dlp, and Homebrew if this Mac does not already have them.
+
+Apple's `/usr/bin/python3` is 3.9 and **cannot** run this app. Do not use it.
 
 > **Why ffmpeg is required:** `librosa` 1.0 dropped its `audioread` fallback, so it
 > can only open formats libsndfile understands — WAV, MP3, FLAC, OGG, AIFF. Anything
@@ -57,55 +61,82 @@ environment diagnostics.
 
 ## Quick start
 
+On a new Mac, this is the whole install:
+
 ```bash
+xcode-select --install          # once, if you have never installed the Command Line Tools
 git clone <this repo>
 cd MyTracks
-./setup.sh
+./setup.sh --install-tools
+./run.sh
 ```
 
-`setup.sh` creates a virtualenv at the repository root, installs everything in
-`requirements.txt`, checks for ffmpeg and yt-dlp, builds the Swift package, and
-tells you exactly what is missing if anything is. It is safe to re-run.
+`--install-tools` is the flag to use on a machine that is not already a
+development Mac. It will:
+
+1. Confirm this is Apple Silicon running macOS 14+
+2. Open the Command Line Tools installer if `swift` is missing
+3. Install Homebrew if needed (may ask for your password)
+4. Install Python 3.12 if the Mac only has Apple's 3.9
+5. Create `venv/` and install `requirements.txt` (PyTorch, Demucs, yt-dlp, …)
+6. Install ffmpeg
+7. Build the app and write `ArielSplitter.app` in this folder
+
+Without the flag, `./setup.sh` still does the Python and Swift work, and
+*asks* before installing missing tools when you run it in a terminal.
+
+Then launch with `./run.sh`, or double-click `ArielSplitter.app`.
 
 ```bash
-./setup.sh --install-tools   # also install missing ffmpeg/yt-dlp via Homebrew
 ./setup.sh --recreate        # rebuild the virtualenv from scratch
+./setup.sh --release         # build the optimized binary
+./setup.sh --install-tools   # non-interactive: install anything missing
 ```
 
-Then run the app:
-
-```bash
-cd "Ariel's Splitter"
-swift run ArielSplitter
-```
-
-Or run the built executable directly:
-
-```bash
-.build/debug/ArielSplitter
-```
+`./run.sh` will run setup itself if the checkout is not ready yet.
 
 ### Manual setup
 
 If you would rather not use the script:
 
 ```bash
-python3 -m venv venv
+# A Homebrew Python, not /usr/bin/python3
+brew install python@3.12 ffmpeg
+python3.12 -m venv venv
 ./venv/bin/python3 -m pip install -r requirements.txt
-brew install ffmpeg yt-dlp
 cd "Ariel's Splitter" && swift build
 ```
+
+Then `./run.sh` from the repository root. yt-dlp is in `requirements.txt`, so
+URL downloads work without a separate `brew install yt-dlp`.
 
 > **Use a virtualenv at the repository root.** The app searches for `venv/`,
 > `.venv/` or `env/` near the project and rejects any interpreter missing a
 > required module. A global `pip install` is not reliably picked up, because a
 > GUI-launched app does not inherit your shell's `PATH`.
 
+## Troubleshooting
+
+| What you see | What to do |
+| --- | --- |
+| `swift not found` / a dialog about Command Line Tools | Run `xcode-select --install`, wait for it to finish, then re-run `./setup.sh` |
+| `no Python 3.10+ found` | Apple's system Python is 3.9. Run `./setup.sh --install-tools` or `brew install python@3.12` |
+| `pip install failed` | Need a network connection. If this Python is newer than 3.14, install 3.12 and pass `--recreate` |
+| `ffmpeg not found` (setup or in the app) | `./setup.sh --install-tools`, or `brew install ffmpeg` |
+| The app opens but says it is not set up | The GUI cannot see your shell `PATH`. Run `./setup.sh` so the project `venv/` exists next to this README |
+| Intel Mac / "running under Rosetta" | Apple Silicon only. Uncheck "Open using Rosetta" on Terminal if this is an Apple Silicon Mac |
+| First separation is slow / downloads something | Normal. Demucs fetches its model into `~/.cache/huggingface` once |
+
+The in-app **Settings → Environment** panel shows the same Python and ffmpeg
+detection the engine uses.
+
 ## Project structure
 
 ```text
 MyTracks/
 ├── setup.sh                    # One-command environment setup
+├── run.sh                      # Launch the app (runs setup if needed)
+├── ArielSplitter.app           # Created by setup.sh; double-click to open
 ├── requirements.txt            # Python dependencies
 ├── README.md
 ├── README_Detailed.md
