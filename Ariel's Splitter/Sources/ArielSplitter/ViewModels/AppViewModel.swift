@@ -652,6 +652,13 @@ class AppViewModel: ObservableObject {
         separationState = .cancelled
     }
     
+    /// Start over: clear everything belonging to the loaded track, keep the
+    /// user's standing preferences.
+    ///
+    /// The output folder is deliberately not cleared. It is a preference, not
+    /// session state, and wiping it left New Session unable to start a run —
+    /// `canStartSeparation` requires a folder — with nothing in the main window
+    /// explaining why, since the folder moved to Settings.
     func reset() {
         audioEngine?.stop()
         audioEngine = nil
@@ -660,10 +667,24 @@ class AppViewModel: ObservableObject {
         audioFileInfo = nil
         stemTracks = []
         separationState = .idle
-        outputDirectory = nil
         isPlaying = false
         currentTime = 0
         duration = 0
+
+        // Session state tied to the track that was loaded.
+        outputFiles = []
+        downloadURLString = ""
+        downloadState = .idle
+        lastDownloadedVideoURL = nil
+        clipboardSuggestion = nil
+        exportState = .configuring
+        exportSelection = []
+
+        // Recover only if something left it unset, so a folder chosen earlier
+        // survives.
+        if outputDirectory == nil {
+            setupOutputDirectory()
+        }
         setupDefaultTracks()
     }
     
