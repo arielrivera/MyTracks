@@ -16,7 +16,11 @@ enum StemCategory: String, CaseIterable, Identifiable, Codable {
     case acousticGuitar = "Acoustic Guitar"
     case electricGuitar = "Electric Guitar"
     case piano = "Piano & Keys"
-    case otherInstruments = "Other Instruments"
+    // Note: there is deliberately no "Other Instruments" category. htdemucs_6s
+    // produces six sources — drums, bass, other, vocals, guitar, piano — with no
+    // separate one for it, so it mapped to the same file as Piano & Keys. That
+    // gave the mixer two rows playing identical audio, summed into a doubled
+    // piano in playback and in every exported mix.
     case other = "Other"
     
     var id: String { rawValue }
@@ -38,7 +42,6 @@ enum StemCategory: String, CaseIterable, Identifiable, Codable {
         case .acousticGuitar: return "music.note"
         case .electricGuitar: return "bolt.fill"
         case .piano: return "pianokeys"
-        case .otherInstruments: return "music.mic"
         case .other: return "ellipsis.circle.fill"
         }
     }
@@ -53,8 +56,6 @@ enum StemCategory: String, CaseIterable, Identifiable, Codable {
             return true
         case .acousticGuitar, .electricGuitar:
             return true // htdemucs_6s supports guitar
-        case .otherInstruments:
-            return true
         }
     }
     

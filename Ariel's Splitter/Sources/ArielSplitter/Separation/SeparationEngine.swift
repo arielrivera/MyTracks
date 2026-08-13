@@ -63,7 +63,7 @@ final class SeparationEngine: @unchecked Sendable {
         let stemsData = try JSONSerialization.data(withJSONObject: stemNames)
         let stemsString = String(data: stemsData, encoding: .utf8)!
         
-        let needs6Stems = categories.contains(where: { $0 == .guitar || $0 == .piano || $0 == .otherInstruments })
+        let needs6Stems = categories.contains(where: { $0 == .guitar || $0 == .piano })
         let modelName = needs6Stems ? "htdemucs_6s" : "htdemucs"
         
         // Resolve a real interpreter rather than trusting `/usr/bin/env python3`,
@@ -262,7 +262,7 @@ extension StemCategory {
         case .drums, .kick, .snare, .toms, .cymbals: return "drums"
         case .bass: return "bass"
         case .guitar, .acousticGuitar, .electricGuitar: return "guitar"
-        case .piano, .otherInstruments: return "piano"
+        case .piano: return "piano"
         case .other: return "other"
         }
     }
