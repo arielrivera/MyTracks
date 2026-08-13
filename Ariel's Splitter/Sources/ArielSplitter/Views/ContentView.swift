@@ -61,6 +61,10 @@ struct ContentView: View {
                     // Nothing left to configure — the run is done, so the window
                     // becomes the mixer. Export lives inside it as a dialog.
                     MixerView()
+
+                    // Fills what was empty space below the mixer, and gives the
+                    // written files somewhere to be seen.
+                    OutputFilesView()
                 } else {
                     FileInfoView()
 

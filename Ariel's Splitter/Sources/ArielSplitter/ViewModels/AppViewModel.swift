@@ -37,6 +37,9 @@ class AppViewModel: ObservableObject {
     @Published var ytDlpPath: URL?
     @Published var ytDlpVersion: String?
 
+    // MARK: - Output files
+    @Published var outputFiles: [OutputFile] = []
+
     // MARK: - Audio format
     /// Format stems are written in. Persisted, since it is a standing
     /// preference rather than a per-run choice.
@@ -546,6 +549,7 @@ class AppViewModel: ObservableObject {
                 }
                 
                 self.separationState = .completed
+                self.refreshOutputFiles()
                 // Stop old engine before creating new one
                 self.audioEngine?.stop()
                 let newEngine = AudioEngineManager(fileURL: fileInfo.url)
@@ -853,6 +857,55 @@ class AppViewModel: ObservableObject {
     func openResultsFolder() {
         guard let outputDir = outputDirectory else { return }
         NSWorkspace.shared.open(outputDir)
+    }
+
+    // MARK: - Output folder listing
+
+    /// Read the output folder for the listing under the mixer.
+    ///
+    /// Reads the directory rather than tracking writes, so files left by earlier
+    /// runs — and anything added outside the app — show up too, which is the
+    /// point of a Finder-like view.
+    func refreshOutputFiles() {
+        guard let directory = outputDirectory else {
+            outputFiles = []
+            return
+        }
+
+        let currentRunURLs = Set(stemTracks.compactMap { $0.fileURL?.standardizedFileURL })
+
+        let keys: [URLResourceKey] = [.fileSizeKey, .contentModificationDateKey, .isRegularFileKey]
+        guard let contents = try? FileManager.default.contentsOfDirectory(
+            at: directory,
+            includingPropertiesForKeys: keys,
+            options: [.skipsHiddenFiles]
+        ) else {
+            outputFiles = []
+            return
+        }
+
+        outputFiles = contents
+            .filter { OutputFile.listedExtensions.contains($0.pathExtension.lowercased()) }
+            .compactMap { url -> OutputFile? in
+                let values = try? url.resourceValues(forKeys: Set(keys))
+                guard values?.isRegularFile != false else { return nil }
+                return OutputFile(
+                    url: url,
+                    size: Int64(values?.fileSize ?? 0),
+                    modified: values?.contentModificationDate ?? .distantPast,
+                    isFromCurrentRun: currentRunURLs.contains(url.standardizedFileURL)
+                )
+            }
+            // Newest first, so the run that just finished is at the top.
+            .sorted { $0.modified > $1.modified }
+    }
+
+    func revealInFinder(_ file: OutputFile) {
+        NSWorkspace.shared.activateFileViewerSelecting([file.url])
+    }
+
+    func open(_ file: OutputFile) {
+        NSWorkspace.shared.open(file.url)
     }
 }
 
