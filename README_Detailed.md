@@ -179,6 +179,17 @@ Opened from the gear beside the title or `Cmd + ,`:
   missing separation modules. Worth checking first when a run fails for
   environmental reasons, since it reports the same detection the engine uses.
 
+The output folder, download folder, export destination, and audio format are
+remembered between launches. A remembered folder is verified before use, so one
+that has been deleted, renamed, or left on an unmounted volume falls back to the
+default rather than pointing the app somewhere that no longer exists.
+
+> Preferences are stored under the `ArielSplitter` domain
+> (`defaults read ArielSplitter`). A bare executable has no bundle identifier,
+> so macOS derives the domain from the executable name — packaging the app with
+> a `CFBundleIdentifier` would change it, and existing preferences would not
+> carry over.
+
 ## Command-line usage
 
 The Swift app is the intended interface, but the underlying Python wrapper can be invoked directly for testing or automation:
@@ -393,12 +404,21 @@ backend (WAV, MP3, FLAC, OGG, AIFF).
 error in practice means **ffmpeg is not installed or was not found**. Install it
 with `brew install ffmpeg` and re-run `./setup.sh` to confirm it is detected.
 
-### Edits to `separate.py` appear to do nothing
+### Which copy of `separate.py` actually runs
 
-`SeparationEngine` prefers the copy in `Bundle.main` over the one in the source
-tree, and SwiftPM only refreshes that copy at build time. **Run `swift build`
-after every change to `separate.py`**, or you will silently keep running the old
-version.
+`SeparationEngine.scriptURL` prefers `Bundle.main`, falling back to a path
+derived from `#filePath`. **When run from the terminal, the fallback is what you
+get**, so edits to `Sources/ArielSplitter/Resources/separate.py` take effect on
+the next separation with no rebuild.
+
+That is because a bare SwiftPM executable has no bundle: `Bundle.main` resolves
+to the directory holding the binary, while SwiftPM puts resources one level
+deeper inside `ArielSplitter_ArielSplitter.bundle`, so
+`url(forResource:withExtension:)` returns nil.
+
+It matters for packaging. Inside a real `.app`, `#filePath` points at a source
+checkout that will not exist on another machine, so the resource lookup has to
+find the nested bundle before the app can be distributed.
 
 ### `Invalid manifest` / undefined `PackageDescription` symbols
 

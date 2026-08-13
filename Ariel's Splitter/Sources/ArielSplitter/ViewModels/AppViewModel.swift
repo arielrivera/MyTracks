@@ -13,7 +13,15 @@ class AppViewModel: ObservableObject {
     @Published var audioFileInfo: AudioFileInfo?
     @Published var stemTracks: [StemTrack] = []
     @Published var separationState: SeparationState = .idle
-    @Published var outputDirectory: URL?
+    @Published var outputDirectory: URL? {
+        // Only remember real choices. The nil written when a folder cannot be
+        // created must not erase the user's stored preference.
+        didSet {
+            if let outputDirectory {
+                UserDefaults.standard.set(outputDirectory.path, forKey: PreferenceKey.outputDirectory)
+            }
+        }
+    }
     @Published var isPlaying: Bool = false
     @Published var currentTime: TimeInterval = 0
     @Published var duration: TimeInterval = 0
@@ -23,7 +31,9 @@ class AppViewModel: ObservableObject {
     @Published var downloadKind: DownloadKind = .audio
     @Published var downloadState: DownloadState = .idle
     @Published var updateState: UpdateState = .idle
-    @Published var downloadDirectory: URL
+    @Published var downloadDirectory: URL {
+        didSet { UserDefaults.standard.set(downloadDirectory.path, forKey: PreferenceKey.downloadDirectory) }
+    }
     @Published var lastDownloadedVideoURL: URL?
     @Published var clipboardSuggestion: String?
     private var dismissedClipboardValue: String?
@@ -44,10 +54,10 @@ class AppViewModel: ObservableObject {
     /// Format stems are written in. Persisted, since it is a standing
     /// preference rather than a per-run choice.
     @Published var stemFormat: AudioFormat {
-        didSet { UserDefaults.standard.set(stemFormat.rawValue, forKey: "stemFormat") }
+        didSet { UserDefaults.standard.set(stemFormat.rawValue, forKey: PreferenceKey.stemFormat) }
     }
     @Published var stemBitrate: AudioBitrate {
-        didSet { UserDefaults.standard.set(stemBitrate.rawValue, forKey: "stemBitrate") }
+        didSet { UserDefaults.standard.set(stemBitrate.rawValue, forKey: PreferenceKey.stemBitrate) }
     }
 
     // MARK: - Export
@@ -55,7 +65,9 @@ class AppViewModel: ObservableObject {
     @Published var exportMode: ExportMode = .mixed
     @Published var exportState: ExportState = .configuring
     @Published var exportSelection: Set<UUID> = []
-    @Published var exportDestination: URL
+    @Published var exportDestination: URL {
+        didSet { UserDefaults.standard.set(exportDestination.path, forKey: PreferenceKey.exportDestination) }
+    }
     @Published var exportFormat: AudioFormat = .wav
     @Published var exportBitrate: AudioBitrate = .default
 
@@ -124,19 +136,24 @@ class AppViewModel: ObservableObject {
 
     // MARK: - Initialization
     init() {
-        // Match the manual yt-dlp workflow, which saves into ~/Downloads.
-        downloadDirectory = Self.downloadsDirectory
+        // Remembered choice wins; otherwise match the manual yt-dlp workflow,
+        // which saves into ~/Downloads.
+        downloadDirectory = Self.storedDirectory(forKey: PreferenceKey.downloadDirectory)
+            ?? Self.downloadsDirectory
         // Exporting means "put a copy somewhere I choose", so it defaults to
-        // Downloads rather than the folder the stems already live in.
-        exportDestination = Self.downloadsDirectory
+        // Downloads rather than the folder the stems already live in — but a
+        // previously chosen destination wins, since exports usually keep going
+        // to the same place.
+        exportDestination = Self.storedDirectory(forKey: PreferenceKey.exportDestination)
+            ?? Self.downloadsDirectory
 
         // WAV stays the default: it is what the mixer reads most cheaply, and
         // compressing by surprise would be a poor default for source separation.
-        let storedFormat = UserDefaults.standard.string(forKey: "stemFormat")
+        let storedFormat = UserDefaults.standard.string(forKey: PreferenceKey.stemFormat)
         stemFormat = storedFormat.flatMap(AudioFormat.init(rawValue:)) ?? .wav
-        let storedBitrate = UserDefaults.standard.integer(forKey: "stemBitrate")
+        let storedBitrate = UserDefaults.standard.integer(forKey: PreferenceKey.stemBitrate)
         stemBitrate = AudioBitrate(rawValue: storedBitrate) ?? .default
-        setupDefaultOutputDirectory()
+        setupOutputDirectory()
         setupDefaultTracks()
         refreshToolStatus()
     }
@@ -227,6 +244,30 @@ class AppViewModel: ObservableObject {
         clipboardSuggestion = nil
     }
     
+    // MARK: - Persisted preferences
+
+    private enum PreferenceKey {
+        static let outputDirectory = "outputDirectory"
+        static let downloadDirectory = "downloadDirectory"
+        static let exportDestination = "exportDestination"
+        static let stemFormat = "stemFormat"
+        static let stemBitrate = "stemBitrate"
+    }
+
+    /// A remembered folder, if it still points at a real directory.
+    ///
+    /// Stored paths go stale: a folder can be deleted, renamed, or sit on a
+    /// volume that is not mounted. Verifying before use means a stale value
+    /// falls back to the default instead of silently pointing the app at
+    /// somewhere that no longer exists.
+    private static func storedDirectory(forKey key: String) -> URL? {
+        guard let path = UserDefaults.standard.string(forKey: key), !path.isEmpty else { return nil }
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory),
+              isDirectory.boolValue else { return nil }
+        return URL(fileURLWithPath: path)
+    }
+
     /// The user's Downloads folder, falling back to ~/Downloads if the system
     /// query fails. Shared by the separation output and the download destination.
     static var downloadsDirectory: URL {
@@ -234,7 +275,13 @@ class AppViewModel: ObservableObject {
             ?? URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Downloads")
     }
 
-    private func setupDefaultOutputDirectory() {
+    private func setupOutputDirectory() {
+        // A folder the user chose previously wins, provided it still exists.
+        if let remembered = Self.storedDirectory(forKey: PreferenceKey.outputDirectory) {
+            outputDirectory = remembered
+            return
+        }
+
         let defaultURL = Self.downloadsDirectory.appendingPathComponent("ariels_splitter_output")
         outputDirectory = defaultURL
 
